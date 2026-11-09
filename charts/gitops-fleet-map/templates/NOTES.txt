@@ -1,0 +1,18 @@
+Fleet Map {{ .Chart.AppVersion }} is installed as {{ include "fleetmap.fullname" . }}.
+
+URL:
+{{- if and .Values.route.enabled (.Capabilities.APIVersions.Has "route.openshift.io/v1") }}
+  oc get route {{ include "fleetmap.fullname" . }} -o jsonpath='https://{.spec.host}{"\n"}'
+{{- else if .Values.ingress.enabled }}
+  http{{ if .Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.host | default "<ingress host>" }}/
+{{- else }}
+  kubectl port-forward svc/{{ include "fleetmap.fullname" . }} 8080:{{ .Values.service.port }}   # then http://localhost:8080/
+{{- end }}
+
+Logs (print the token's scopes and expiry, and one config line):
+  kubectl logs deploy/{{ include "fleetmap.fullname" . }}
+
+The page says "No data yet" (503) until every project was fetched once. Common errors:
+  401                 the token is wrong, revoked or expired. Needs Reporter, scopes read_api + read_repository.
+  group not found     sigsUrl is wrong, or the token's user has no access to it. Use the web URL of the sigs group.
+  TLS check failed    GitLab uses an internal CA. Set ca.pem (--set-file ca.pem=corp-ca.pem) or ca.existingConfigMap.

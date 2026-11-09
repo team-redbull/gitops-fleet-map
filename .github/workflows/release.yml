@@ -1,5 +1,5 @@
 # Publishes the image to GitHub Packages (ghcr.io) when a version tag is pushed.
-# Tag v1.3.0  ->  ghcr.io/<owner>/gitops-fleet-map:1.3.0 and :latest
+# Tag v1.3.0  ->  ghcr.io/<owner>/gitops-fleet-map:1.3.0 and :latest, and the Helm chart at oci://ghcr.io/<owner>/charts
 name: release
 
 on:
@@ -44,6 +44,14 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - uses: azure/setup-helm@v4
+
+      - name: Publish Helm chart
+        run: |
+          helm package charts/gitops-fleet-map --app-version "${GITHUB_REF_NAME#v}"
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          helm push gitops-fleet-map-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
 
       - name: Release notes
         env:

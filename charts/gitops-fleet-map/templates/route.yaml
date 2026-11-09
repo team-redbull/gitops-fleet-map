@@ -1,0 +1,16 @@
+{{- if and .Values.route.enabled (.Capabilities.APIVersions.Has "route.openshift.io/v1") }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "fleetmap.fullname" . }}
+  labels: {{- include "fleetmap.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.route.host }}
+  host: {{ . }}
+  {{- end }}
+  to: {kind: Service, name: {{ include "fleetmap.fullname" . }}}
+  port: {targetPort: http}
+  {{- with .Values.route.tls }}
+  tls: {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

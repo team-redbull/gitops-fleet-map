@@ -1,0 +1,50 @@
+image:
+  repository: ghcr.io/<owner>/gitops-fleet-map
+  tag: ""                 # defaults to the chart appVersion
+imagePullSecrets: []
+
+sigsUrl: ""               # REQUIRED: web URL of the sigs group, e.g. https://gitlab.example/org/day2/sigs
+day1Url: ""               # optional: web URL of the day1 project (same GitLab); empty = no stale detection
+
+# Exactly one token source is required (Reporter, scopes read_api + read_repository).
+token:
+  value: ""               # creates a Secret from this (not recommended in git)
+  existingSecret: ""      # or use an existing Secret...
+  key: token              # ...and this key
+
+# Internal CA, added to the system CAs.
+ca:
+  pem: ""                 # creates a ConfigMap from this PEM, or
+  existingConfigMap: ""
+  key: ca.crt
+
+insecure: false           # GITLAB_INSECURE, skips TLS verification (avoid)
+interval: 60              # seconds between checks
+hideValues: false         # HIDE_VALUES
+gitRef: ""                # GIT_REF, default: each project's default branch
+prefetchRefs: ""          # PREFETCH_REFS, e.g. "a:dev,b:release"
+maxCachedTrees: 30
+proxy: {https: "", noProxy: ""}   # HTTPS_PROXY / NO_PROXY
+extraEnv: []
+
+resources:
+  requests: {cpu: 50m, memory: 128Mi}
+  limits: {cpu: 500m, memory: 512Mi}
+
+route:                    # OpenShift only; skipped when the cluster has no Route API
+  enabled: true
+  host: ""
+  tls: {termination: edge, insecureEdgeTerminationPolicy: Redirect}
+
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  tls: []                 # standard Ingress tls list
+
+service: {port: 8080}
+
+podSecurityContext: {}    # empty on OpenShift (restricted-v2 assigns the UID); e.g. runAsUser/fsGroup on k3s
+nodeSelector: {}
+tolerations: []
+podAnnotations: {}

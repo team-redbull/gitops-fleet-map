@@ -1,0 +1,10 @@
+{{- if .Values.ca.pem }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fleetmap.caConfigMap" . }}
+  labels: {{- include "fleetmap.labels" . | nindent 4 }}
+data:
+  {{ .Values.ca.key }}: |
+    {{- .Values.ca.pem | trim | nindent 4 }}
+{{- end }}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2
+- Helm chart (`charts/gitops-fleet-map`, chart 0.1.0), published to `oci://ghcr.io/<owner>/charts` on version tags.
+
+## 1.3.1
+- Same image as 1.3.0 (tag pushed before the Helm chart landed).
+
 ## 1.3.0
 - Per-tenant branch picker: view any combination of branches, shareable as `#refs=a:dev,c:release`, `GET /api/view`.
 - Chart conflicts are decided by repo + revision (not by version string alone).

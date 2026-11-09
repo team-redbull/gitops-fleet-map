@@ -1,0 +1,98 @@
+{{- include "fleetmap.validate" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fleetmap.fullname" . }}
+  labels: {{- include "fleetmap.labels" . | nindent 4 }}
+spec:
+  replicas: 1   # single writer to the cache
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {{- include "fleetmap.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "fleetmap.labels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ printf "%s|%s|%s|%s" .Values.token.value .Values.token.existingSecret .Values.ca.pem .Values.ca.existingConfigMap | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: app
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+        ports: [{name: http, containerPort: 8080}]
+        env:
+        - {name: SIGS_URL, value: {{ .Values.sigsUrl | quote }}}
+        {{- with .Values.day1Url }}
+        - {name: DAY1_URL, value: {{ . | quote }}}
+        {{- end }}
+        - {name: GITLAB_TOKEN_FILE, value: /var/run/secrets/gitlab/token}
+        {{- if or .Values.ca.pem .Values.ca.existingConfigMap }}
+        - {name: GITLAB_CA_FILE, value: /var/run/secrets/ca/ca.crt}
+        {{- end }}
+        {{- if .Values.insecure }}
+        - {name: GITLAB_INSECURE, value: "true"}
+        {{- end }}
+        - {name: INTERVAL, value: {{ .Values.interval | quote }}}
+        - {name: MAX_CACHED_TREES, value: {{ .Values.maxCachedTrees | quote }}}
+        {{- if .Values.hideValues }}
+        - {name: HIDE_VALUES, value: "true"}
+        {{- end }}
+        {{- with .Values.gitRef }}
+        - {name: GIT_REF, value: {{ . | quote }}}
+        {{- end }}
+        {{- with .Values.prefetchRefs }}
+        - {name: PREFETCH_REFS, value: {{ . | quote }}}
+        {{- end }}
+        {{- with .Values.proxy.https }}
+        - {name: HTTPS_PROXY, value: {{ . | quote }}}
+        {{- end }}
+        {{- with .Values.proxy.noProxy }}
+        - {name: NO_PROXY, value: {{ . | quote }}}
+        {{- end }}
+        {{- with .Values.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        readinessProbe: {httpGet: {path: /healthz, port: http}}
+        livenessProbe: {httpGet: {path: /healthz, port: http}, initialDelaySeconds: 10, periodSeconds: 30}
+        resources: {{- toYaml .Values.resources | nindent 10 }}
+        # no fixed UID: OpenShift restricted-v2 assigns one in group 0
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+          seccompProfile: {type: RuntimeDefault}
+        volumeMounts:
+        - {name: data, mountPath: /data}
+        - {name: tmp, mountPath: /tmp}
+        - {name: token, mountPath: /var/run/secrets/gitlab, readOnly: true}
+        {{- if or .Values.ca.pem .Values.ca.existingConfigMap }}
+        - {name: ca, mountPath: /var/run/secrets/ca, readOnly: true}
+        {{- end }}
+      volumes:
+      - {name: data, emptyDir: {}}
+      - {name: tmp, emptyDir: {}}
+      - name: token
+        secret:
+          secretName: {{ include "fleetmap.tokenSecret" . }}
+          items: [{key: {{ .Values.token.key }}, path: token}]
+      {{- if or .Values.ca.pem .Values.ca.existingConfigMap }}
+      - name: ca
+        configMap:
+          name: {{ include "fleetmap.caConfigMap" . }}
+          items: [{key: {{ .Values.ca.key }}, path: ca.crt}]
+      {{- end }}

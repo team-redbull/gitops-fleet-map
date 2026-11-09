@@ -27,6 +27,32 @@ flowchart LR
    ```
 5. Open the Route. `oc logs deploy/gitops-fleet-map` prints the token's scopes and expiry, and one config line.
 
+## Install with Helm
+
+1. Install the chart. `sigsUrl` and a token source are required; `day1Url` is optional.
+   ```sh
+   helm install fleet-map oci://ghcr.io/<owner>/charts/gitops-fleet-map --version 0.1.0 \
+     --set sigsUrl=https://gitlab.example/org/day2/sigs \
+     --set day1Url=https://gitlab.example/org/day1/platform-config \
+     --set token.existingSecret=gitops-fleet-map-token
+   ```
+2. Create the Secret first (key `token`, see Quick start). `--set token.value=...` also works but puts the token in your values.
+3. For an internal CA, pass the PEM.
+   ```sh
+   helm install ... --set-file ca.pem=corp-ca.pem      # or --set ca.existingConfigMap=NAME
+   ```
+4. To install from a local checkout, put your settings in a values file.
+   ```sh
+   helm install fleet-map charts/gitops-fleet-map -f my-values.yaml
+   ```
+5. For a disconnected cluster, pull the chart where you have access, copy the `.tgz` over, and point the image at your internal registry.
+   ```sh
+   helm pull oci://ghcr.io/<owner>/charts/gitops-fleet-map --version 0.1.0
+   helm install fleet-map gitops-fleet-map-0.1.0.tgz -f my-values.yaml --set image.repository=registry.example/gitops-fleet-map
+   ```
+
+On OpenShift the chart creates a Route; on plain Kubernetes it skips the Route, and `--set ingress.enabled=true --set ingress.host=...` adds an Ingress. All values are in `charts/gitops-fleet-map/values.yaml`. `deploy/openshift.yaml` stays as the no-Helm option.
+
 ## What the page shows
 
 | Item | Meaning |

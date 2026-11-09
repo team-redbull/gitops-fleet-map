@@ -1,0 +1,7 @@
+apiVersion: v2
+name: gitops-fleet-map
+description: Fleet Map, a cluster x tenant map of day1 and day2 sigs GitOps repos, for OpenShift and Kubernetes.
+type: application
+version: 0.1.0
+appVersion: "1.3.2"
+kubeVersion: ">=1.25.0-0"
