@@ -78,6 +78,16 @@ Before the first success, `/healthz` is ok and `/` is a 503 "No data yet". `GET 
 
 Old `GITLAB_URL` + `SIGS_GROUP` (+ `DAY1_PROJECT`) still work. A bad config (no token, malformed URL) exits with code 2. Other startup errors are one line, and `serve` retries each interval.
 
+## Releases
+
+Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`: tests, then builds the UBI image and publishes it to GitHub Packages.
+
+```sh
+docker pull ghcr.io/<owner>/gitops-fleet-map:1.3.0
+```
+
+For a disconnected cluster, pull it once, save it, and push it to your internal registry.
+
 ## Build the image
 
 | File | Base | Notes |
