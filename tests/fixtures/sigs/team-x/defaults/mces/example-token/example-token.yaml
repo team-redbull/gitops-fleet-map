@@ -1,0 +1,11 @@
+# Example fleet-default chart. repourl is all lowercase (the key the deploy template reads).
+projectNamespace: example-token
+repourl: https://git.example/team-x/helm-charts/example-token.git
+targetRevision: main
+path: charts/example-token
+syncPolicy:
+  automated:
+    selfHeal: true
+    prune: true
+  syncOptions:
+    - CreateNamespace=true

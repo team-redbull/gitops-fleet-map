@@ -1,0 +1,14 @@
+# Alternative image: python:3.12-alpine + PyYAML. No git, bash or curl.
+#   docker build -f Dockerfile.alpine --build-arg BASE=registry.internal/python:3.12-alpine --build-arg PIP_INDEX_URL=... -t gitops-fleet-map .
+ARG BASE=python:3.12-alpine
+FROM ${BASE}
+ARG PIP_INDEX_URL
+RUN pip install --no-cache-dir ${PIP_INDEX_URL:+--index-url "$PIP_INDEX_URL"} PyYAML==6.0.2 \
+ && pip uninstall -y pip
+WORKDIR /app
+COPY fleetmap.py index.tmpl.html ./
+RUN mkdir -p /data && chgrp 0 /data /tmp && chmod g=u /data /tmp
+ENV HOME=/tmp PYTHONDONTWRITEBYTECODE=1
+USER 1001
+EXPOSE 8080
+CMD ["python", "fleetmap.py", "serve", "--out", "/data/out", "--port", "8080"]

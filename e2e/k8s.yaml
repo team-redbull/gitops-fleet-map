@@ -1,0 +1,36 @@
+# README's Deployment + Service, with the OpenShift-like securityContext used in the e2e run.
+# The Secret gitops-fleet-map-token (key: token) is created by up.sh; __HOSTIP__ is replaced by up.sh (where the fake GitLab runs).
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: gitops-fleet-map}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: gitops-fleet-map}}
+  template:
+    metadata: {labels: {app: gitops-fleet-map}}
+    spec:
+      containers:
+      - name: app
+        image: gitops-fleet-map:1.3.0
+        imagePullPolicy: Never
+        ports: [{containerPort: 8080}]
+        env:
+        - {name: SIGS_URL, value: "http://__HOSTIP__:8929/org/day2/sigs"}
+        - {name: DAY1_URL, value: "http://__HOSTIP__:8929/org/day1/platform-config"}
+        - {name: GITLAB_TOKEN_FILE, value: /var/run/secrets/gitlab/token}
+        - {name: INTERVAL, value: "60"}
+        readinessProbe: {httpGet: {path: /healthz, port: 8080}}
+        securityContext:
+          runAsUser: 1000700000
+          runAsGroup: 0
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+        volumeMounts: [{name: data, mountPath: /data}, {name: tmp, mountPath: /tmp}, {name: token, mountPath: /var/run/secrets/gitlab, readOnly: true}]
+      volumes: [{name: data, emptyDir: {}}, {name: tmp, emptyDir: {}}, {name: token, secret: {secretName: gitops-fleet-map-token}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: gitops-fleet-map}
+spec: {selector: {app: gitops-fleet-map}, ports: [{port: 8080}]}

@@ -1,0 +1,2 @@
+# Optional: the OCP version of this UPI cluster. Carries mastertag and nothing else.
+mastertag: 4.16.27-x86_64

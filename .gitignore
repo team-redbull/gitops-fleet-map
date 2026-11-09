@@ -1,0 +1,6 @@
+__pycache__/
+e2e/.state/
+tests/shots/
+e2e/shots/
+*.image.tar.gz
+/out/

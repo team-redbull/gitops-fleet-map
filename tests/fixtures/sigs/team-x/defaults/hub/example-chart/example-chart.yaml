@@ -1,0 +1,8 @@
+# Example deploy config for a chart on the prod-hub cluster.
+projectNamespace: example-namespace
+# repourl, all lowercase: the key the deploy template reads.
+repourl: ...helm-charts...
+targetRevision: main
+syncPolicy:
+  syncOptions:
+    - CreateNamespace=true

@@ -1,0 +1,46 @@
+# Fleet Map on OpenShift: Deployment + Service + Route.
+# Create the token Secret first (Reporter role, scopes read_api + read_repository):
+#   oc create secret generic gitops-fleet-map-token --from-literal=token=glpat-REPLACE-ME
+# or as YAML:
+#   apiVersion: v1
+#   kind: Secret
+#   metadata: {name: gitops-fleet-map-token}
+#   stringData: {token: glpat-REPLACE-ME}
+# Edit image, SIGS_URL and DAY1_URL, then: oc apply -f deploy/openshift.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: gitops-fleet-map}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: gitops-fleet-map}}
+  template:
+    metadata: {labels: {app: gitops-fleet-map}}
+    spec:
+      containers:
+      - name: app
+        image: registry.example/gitops-fleet-map:1.3.0
+        ports: [{containerPort: 8080}]
+        env:
+        - {name: SIGS_URL, value: "https://gitlab.example/org/day2/sigs"}
+        - {name: DAY1_URL, value: "https://gitlab.example/org/day1/platform-config"}
+        - {name: GITLAB_TOKEN_FILE, value: /var/run/secrets/gitlab/token}
+        # - {name: GITLAB_CA_FILE, value: /var/run/secrets/ca/ca.crt}   # internal CA (PEM), added to the system CAs
+        readinessProbe: {httpGet: {path: /healthz, port: 8080}}
+        livenessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 10, periodSeconds: 30}
+        resources:
+          requests: {cpu: 50m, memory: 128Mi}
+          limits: {cpu: 500m, memory: 512Mi}
+        # arbitrary UID in group 0 (restricted-v2 SCC), read-only root: only /data and /tmp are written
+        securityContext: {runAsNonRoot: true, readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+        volumeMounts: [{name: data, mountPath: /data}, {name: tmp, mountPath: /tmp}, {name: token, mountPath: /var/run/secrets/gitlab, readOnly: true}]
+      volumes: [{name: data, emptyDir: {}}, {name: tmp, emptyDir: {}}, {name: token, secret: {secretName: gitops-fleet-map-token}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: gitops-fleet-map}
+spec: {selector: {app: gitops-fleet-map}, ports: [{port: 8080}]}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata: {name: gitops-fleet-map}
+spec: {to: {kind: Service, name: gitops-fleet-map}, tls: {termination: edge}}

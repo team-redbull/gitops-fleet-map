@@ -1,0 +1,3 @@
+repourl: https://git.example/probe.git
+path: charts/probe
+targetRevision: main

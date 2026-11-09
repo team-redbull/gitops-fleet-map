@@ -1,0 +1,4 @@
+# Per chart: the MCEs that must not get this fleet default.
+exclusions:
+  example-token:
+    - ocp4-prep-mce-site1-a

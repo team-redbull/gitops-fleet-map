@@ -1,0 +1,1105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet Map</title>
+<style>
+:root{color-scheme:light dark;
+--canvas:#f2f2f7;--surf:#fff;--surf2:#f6f6f9;--hov:#f0f1f5;--line:#e2e2e8;--line2:#c9c9d0;
+--fg:#1c1c1e;--mut:#5c5c66;--accent:#0952c4;--accbg:#e6efff;--tint:rgba(10,90,212,.07);--tint2:rgba(10,90,212,.14);
+--ok:#14632f;--okbg:#e2f4e8;--unv:#484f5c;--unvbg:#eaecf0;--stale:#8a4300;--stalebg:#fcebcc;--avail:#0a6670;--availbg:#d8f0f2;--miss:#6b2a9e;--missbg:#f0e5fa;--nid:#a3155e;--nidbg:#fbe4f0;--bad:#b3201c;--badbg:#fce3e1;
+--mast:rgba(18,19,22,.9);--mastsolid:#16171b;--sheet:rgba(255,255,255,.94);--sheetsolid:#fff;
+--sh:0 1px 2px rgba(0,0,0,.05),0 6px 20px rgba(0,0,0,.06);--shbig:0 10px 40px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.08);
+--ease:cubic-bezier(.23,1,.32,1);--drawer:cubic-bezier(.32,.72,0,1)}
+@media (prefers-color-scheme:dark){:root{
+--canvas:#000;--surf:#1c1c1e;--surf2:#232326;--hov:#2a2a2d;--line:#313135;--line2:#4a4a50;
+--fg:#f5f5f7;--mut:#adadb7;--accent:#78b0ff;--accbg:#14233d;--tint:rgba(106,167,255,.12);--tint2:rgba(106,167,255,.22);
+--ok:#66d98f;--okbg:#12301d;--unv:#b7bfca;--unvbg:#2c2f35;--stale:#f6b45c;--stalebg:#3a2a0f;--avail:#62d3dd;--availbg:#0e3539;--miss:#d6b4ff;--missbg:#2f1b4b;--nid:#ff9dcb;--nidbg:#46152f;--bad:#ff9f99;--badbg:#40181a;
+--mast:rgba(28,28,30,.82);--mastsolid:#1c1c1e;--sheet:rgba(36,36,39,.94);--sheetsolid:#242427;
+--sh:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.35);--shbig:0 10px 40px rgba(0,0,0,.6),0 2px 8px rgba(0,0,0,.4)}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:64px}
+body{margin:0;background:var(--canvas);color:var(--fg);font:.875rem/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,"Helvetica Neue",Arial,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;accent-color:var(--accent);caret-color:var(--accent)}
+::selection{background:var(--tint2);color:var(--fg)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+h1,h2,h3,p{margin:0}
+code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+button{font:inherit;color:inherit}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.mut{color:var(--mut)}
+.ic{display:inline-flex;flex:none;width:16px;height:16px}
+.ic svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+.skip{position:absolute;left:8px;top:-48px;background:var(--surf);padding:8px 12px;border-radius:8px;z-index:50}
+.skip:focus{top:8px}
+
+/* masthead: translucent material, content scrolls under it */
+.mast{position:sticky;top:0;z-index:30;height:52px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px;color:#f5f5f7;background:var(--mast);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid rgba(255,255,255,.08);box-shadow:inset 0 -1px 0 rgba(0,0,0,.3)}
+.mast :focus-visible{outline-color:#8db8ff}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;letter-spacing:-.01em;white-space:nowrap}
+.brand svg{width:26px;height:26px;flex:none}
+.mast-r{display:flex;align-items:center;gap:10px;min-width:0}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.1);color:#d8d8de;font-size:12.5px;letter-spacing:.005em;white-space:nowrap}
+.chip i{width:7px;height:7px;border-radius:50%;background:#5fd68a;display:block}
+.dd{position:relative;display:inline-flex;align-items:center;min-width:0}
+.dd select{appearance:none;-webkit-appearance:none;font:inherit;color:var(--fg);background:var(--surf);border:1px solid var(--line2);border-radius:10px;height:34px;padding:0 30px 0 12px;min-width:0;max-width:100%;cursor:pointer;transition:background-color 150ms ease,border-color 150ms ease,transform 120ms var(--ease)}
+.dd select option{background:var(--surf);color:var(--fg)}
+.dd>.ic{position:absolute;right:10px;pointer-events:none;color:var(--mut)}
+.dd select:active{transform:scale(.98)}
+.sw select{height:36px;border-radius:999px;padding:0 34px 0 44px;color:#f5f5f7;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.18);font-weight:500;min-width:170px;max-width:260px;text-overflow:ellipsis}
+.sw>.ic{color:#dcdce2}
+.sw .av{position:absolute;left:5px;pointer-events:none}
+@media (hover:hover) and (pointer:fine){.sw select:hover{background:rgba(255,255,255,.2)}.dd select:hover{background:var(--hov)}}
+@media (max-width:640px){.mast{padding:0 12px}.brand span.t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.chip{display:none}.sw select{min-width:0;width:100%}.mast-r{flex:1;justify-content:flex-end}}
+
+.av{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none;color:#fff;font-size:10.5px;font-weight:600;letter-spacing:.02em}
+.av::before{content:attr(data-i)}
+.av0{background:#3552c9}.av1{background:#0b6f82}.av2{background:#9333b0}.av3{background:#b83e0a}.av4{background:#2b7a2e}.av5{background:#5b3cc4}
+.av.s{width:20px;height:20px;font-size:9px}
+
+/* branches: masthead button, popover, info bar, tags */
+.mbtn{all:unset;box-sizing:border-box;cursor:pointer;position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 12px 0 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.12);color:#f5f5f7;font-weight:500;white-space:nowrap;transition:background-color 150ms ease,transform 120ms var(--ease)}
+.mbtn[hidden]{display:none}
+.mbtn:focus-visible{outline:2px solid #8db8ff;outline-offset:2px}
+.mbtn:active{transform:scale(.97)}
+.mbtn[aria-expanded=true]{background:rgba(255,255,255,.24)}
+.mbtn .bn{min-width:18px;padding:0 5px;border-radius:999px;background:#8db8ff;color:#0b1b33;font-size:11.5px;font-weight:600;line-height:18px;text-align:center}
+.mbtn.busy::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:40%;background:#8db8ff;animation:slide 1s var(--ease) infinite}
+@keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+@media (prefers-reduced-motion:reduce){.mbtn.busy::after{animation:none;width:100%;opacity:.7}}
+@media (hover:hover) and (pointer:fine){.mbtn:hover{background:rgba(255,255,255,.2)}}
+.brpop{position:absolute;top:calc(100% + 8px);right:16px;z-index:40;width:min(380px,calc(100vw - 24px));max-height:calc(100vh - 80px);overflow:auto;padding:14px 16px 16px;color:var(--fg);background:var(--sheetsolid);border:1px solid var(--line2);border-radius:14px;box-shadow:var(--shbig);transform-origin:top right;animation:pop 160ms var(--ease)}
+@keyframes pop{from{opacity:0;transform:scale(.97)}}
+@media (prefers-reduced-motion:reduce){.brpop{animation:none}}
+.brpop[hidden]{display:none}
+.brpop :focus-visible{outline-color:var(--accent)}
+.brpop h2{font-size:14px;font-weight:600;letter-spacing:-.005em}
+.brpop .hint{margin:2px 0 10px}
+.brrow{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.5fr);gap:8px 12px;align-items:center;padding:7px 0}
+.brrow+.brrow{border-top:1px solid var(--line)}
+.brrow .tn{display:flex;align-items:center;gap:8px;min-width:0;font-weight:500;overflow-wrap:anywhere}
+.brrow .dd{display:flex}
+.brrow .dd select{width:100%;height:32px;text-overflow:ellipsis}
+.brrow .flt{margin:0 0 6px;height:30px}
+.brerr{margin:8px 0 0;padding:8px 10px;border-radius:9px;background:var(--badbg);color:var(--bad);font-size:13px;overflow-wrap:anywhere}
+.brerr[hidden]{display:none}
+.bract{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:12px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--canvas)}
+.btn:disabled{opacity:.6;cursor:default}
+@media (max-width:640px){.brpop{left:12px;right:12px;width:auto}}
+.viewbar{background:var(--accbg);border-bottom:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+.viewbar[hidden]{display:none}
+.vb{max-width:1400px;margin:0 auto;padding:8px 16px;display:flex;align-items:flex-start;gap:8px;font-size:13.5px;line-height:1.5}
+.vb>.ic{color:var(--accent);margin-top:2.5px}
+.vb code{font-size:12.5px}
+.vb .link{font-weight:600}
+.vb.note{color:var(--mut)}
+@media (min-width:900px){.vb{padding:8px 28px}}
+.btag{display:inline-flex;align-items:center;flex:none;max-width:14ch;margin-left:6px;padding:0 7px;border-radius:999px;background:var(--tint2);color:var(--accent);font:600 11px/18px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.m th .btag,.sumrow .btag,.tsec h3 .btag,.tchip .btag,.charts .r1 .btag,.title h1 .btag{margin-left:0}
+main[aria-busy=true]{opacity:.55;transition:opacity 150ms ease}
+
+/* canvas */
+main{min-width:0;padding:12px 16px 0}
+.shell{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr)}
+.title{margin-bottom:16px}
+.title h1{font-size:1.375rem;line-height:1.2;font-weight:600;letter-spacing:-.02em;overflow-wrap:anywhere}
+.title p{color:var(--mut);margin-top:4px;font-size:13.5px}
+.title h1 .tn{color:var(--mut);font-weight:500}
+
+/* site navigation: sidebar on desktop, scrolling chip row on small screens (one list, one set of semantics) */
+.sitenav{padding:16px 16px 0;min-width:0}
+.nh{display:none;margin:0 10px 6px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)}
+.sitenav ul{list-style:none;margin:0;padding:0 0 2px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.ni{all:unset;box-sizing:border-box;position:relative;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surf);font-weight:500;transition:background-color 150ms ease,border-color 150ms ease,transform 120ms var(--ease)}
+.ni:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.ni:active{transform:scale(.97)}
+.ni[aria-current=page]{background:var(--accbg);border-color:var(--accent);color:var(--accent);font-weight:600}
+.nl{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.nbs{display:flex;align-items:center;gap:3px;margin-left:auto}
+.nbd{font-size:11.5px;font-weight:600;line-height:18px;padding:0 6px;border-radius:999px;color:var(--c);background:var(--b)}
+.nc{color:var(--mut);font-size:12.5px;min-width:1.4em;text-align:right;font-weight:400}
+.ni[aria-current=page] .nc{color:inherit;opacity:.8}
+@media (hover:hover) and (pointer:fine){.ni:hover{background:var(--hov)}.ni[aria-current=page]:hover{background:var(--accbg)}}
+@media (min-width:900px){
+.shell{grid-template-columns:260px minmax(0,1fr)}
+main{padding:28px 28px 0 20px}
+.sitenav{position:sticky;top:52px;align-self:start;max-height:calc(100vh - 52px);overflow-y:auto;padding:28px 0 24px 28px}
+.nh{display:block}
+.sitenav ul{flex-direction:column;overflow:visible;gap:2px}
+.ni{width:100%;border-radius:10px;border-color:transparent;background:none;padding:0 10px;position:relative}
+.ni[aria-current=page]{border-color:transparent;box-shadow:inset 3px 0 0 var(--accent)}
+}
+.surface{background:var(--surf);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh)}
+
+/* alerts */
+#banner{display:grid;gap:10px;margin-bottom:16px}
+.banner{display:flex;gap:12px;padding:12px 16px;border-radius:12px;border:1px solid;max-width:900px}
+.banner.info{background:var(--accbg);border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+.banner.warn{background:var(--stalebg);border-color:color-mix(in srgb,var(--stale) 40%,transparent)}
+.banner>.ic{margin-top:2px}.banner.info>.ic{color:var(--accent)}.banner.warn>.ic{color:var(--stale)}
+.banner b,.banner summary{font-weight:600}
+.banner p{color:var(--fg)}
+.banner details{min-width:0;overflow-wrap:anywhere}
+.banner summary{cursor:pointer}
+.banner ul{margin:6px 0 0;padding-left:18px}
+.banner .more{margin-top:4px;color:var(--mut)}
+
+/* summary tiles */
+.tiles{display:grid;grid-template-columns:repeat(var(--nt,4),minmax(0,1fr));gap:12px;margin-bottom:20px}
+@media (max-width:760px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.tiles .tile:last-child:nth-child(odd){grid-column:span 2}}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:2px;padding:14px 16px 14px;background:var(--surf);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh);transition:transform 140ms var(--ease),background-color 150ms ease,border-color 150ms ease,box-shadow 150ms ease;min-width:0}
+.tile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tile .top{display:flex;align-items:center;gap:10px;font-weight:500;font-size:13.5px}
+.cir{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.cir .ic,.cir .ic svg{width:17px;height:17px}
+.tile .num{font-size:1.9rem;line-height:1.15;font-weight:600;letter-spacing:-.025em;margin-top:6px}
+.tile .cap{color:var(--mut);font-size:12.5px;letter-spacing:.005em}
+.tile[aria-pressed=true]{border-color:var(--accent);background:var(--accbg);box-shadow:0 0 0 1px var(--accent),var(--sh)}
+.tile:active{transform:scale(.985)}
+@media (hover:hover) and (pointer:fine){.tile:hover{border-color:var(--line2);box-shadow:var(--shbig);transform:translateY(-1px)}.tile[aria-pressed=true]:hover{border-color:var(--accent)}}
+.s-onboarded{--c:var(--ok);--b:var(--okbg)}.s-unverified{--c:var(--unv);--b:var(--unvbg)}.s-stale{--c:var(--stale);--b:var(--stalebg)}.s-available{--c:var(--avail);--b:var(--availbg)}.s-missing{--c:var(--miss);--b:var(--missbg)}.s-none{--c:var(--mut);--b:transparent}.s-conflict{--c:var(--bad);--b:var(--badbg)}.s-version-skew{--c:var(--stale);--b:var(--stalebg)}.s-nid{--c:var(--nid);--b:var(--nidbg)}
+.cir{color:var(--c);background:var(--b)}
+
+/* segmented control */
+.seg{display:inline-flex;max-width:100%;overflow-x:auto;padding:3px;background:color-mix(in srgb,var(--fg) 8%,var(--canvas));border-radius:12px;gap:2px;margin-bottom:16px;scrollbar-width:none}
+.seg button{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:9px;font-weight:500;white-space:nowrap;color:var(--mut);transition:background-color 150ms ease,color 150ms ease,transform 120ms var(--ease)}
+.seg button[hidden]{display:none}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.seg button[aria-selected=true]{background:var(--surf);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.06)}
+.seg button:active{transform:scale(.97)}
+@media (hover:hover) and (pointer:fine){.seg button[aria-selected=false]:hover{color:var(--fg)}}
+.badge{min-width:20px;padding:0 6px;border-radius:999px;font-size:12px;line-height:20px;text-align:center;background:var(--unvbg);color:var(--fg);font-weight:600}
+.badge.red{background:var(--bad);color:#fff}
+.badge.amber{background:var(--stalebg);color:var(--stale)}
+@media (prefers-color-scheme:dark){.badge.red{color:#1c0a09}}
+
+/* inset grouped lists */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:24px;align-items:start}
+.ghead{display:flex;align-items:center;gap:12px;margin:0 4px 10px}
+.ghead h2{font-size:1rem;font-weight:600;letter-spacing:-.01em}
+.ghead p{color:var(--mut);font-size:13px}
+.inset{background:var(--surf);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh);overflow:hidden}
+.acts{list-style:none;margin:0;padding:0}
+.acts li{position:relative;padding:12px 16px;transition:background-color 120ms ease}
+.acts li+li{border-top:1px solid var(--line)}
+.acts .nmrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rowbtn{all:unset;box-sizing:border-box;cursor:pointer;font-weight:600;overflow-wrap:anywhere;letter-spacing:-.005em}
+.rowbtn::after{content:"";position:absolute;inset:0}
+.rowbtn:focus-visible{outline:none}
+.acts li:has(.rowbtn:focus-visible){outline:2px solid var(--accent);outline-offset:-2px;border-radius:8px}
+.acts li:has(.rowbtn:active){background:var(--tint2)}
+@media (hover:hover) and (pointer:fine){.acts li:hover{background:var(--hov)}}
+.kind{font-size:11.5px;font-weight:500;color:var(--mut);background:var(--surf2);border:1px solid var(--line);border-radius:6px;padding:0 6px;line-height:18px}
+.why{color:var(--mut);margin-top:2px;overflow-wrap:anywhere}
+.path{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;position:relative;z-index:1}
+.path>span.l{color:var(--mut);font-size:12.5px;min-width:3.4rem}
+.pe{display:inline-flex;align-items:center;gap:2px;max-width:100%;background:var(--surf2);border:1px solid var(--line);border-radius:8px;padding:0 2px 0 8px}
+.pe code{user-select:all;padding:3px 0}
+.copy{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:4px;height:26px;min-width:26px;justify-content:center;padding:0 6px;border-radius:6px;color:var(--mut);font-size:12px;transition:background-color 120ms ease,color 120ms ease,transform 120ms var(--ease)}
+.copy:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.copy:active{transform:scale(.92)}
+.copy.done{color:var(--ok)}
+@media (hover:hover) and (pointer:fine){.copy:hover{background:var(--hov);color:var(--fg)}}
+@media (pointer:coarse){.copy{height:34px;min-width:34px}}
+.btn{font:inherit;color:var(--fg);background:var(--surf);border:1px solid var(--line2);border-radius:10px;height:34px;padding:0 14px;cursor:pointer;font-weight:500;transition:background-color 150ms ease,transform 120ms var(--ease)}
+.btn:active{transform:scale(.97)}
+.btn.more{margin:10px 4px 0}
+@media (hover:hover) and (pointer:fine){.btn:hover{background:var(--hov)}}
+.link{all:unset;cursor:pointer;color:var(--accent);font-weight:600;border-radius:4px}
+.link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.link:active{opacity:.7}
+.conf li b{font-weight:600;overflow-wrap:anywhere}
+@media (hover:hover) and (pointer:fine){.acts.conf li:hover{background:none}}
+.ents{list-style:none;margin:8px 0 0;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--surf2);overflow:hidden}
+.ents li{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:7px 10px}
+.ents li+li{border-top:1px solid var(--line)}
+.ents .em{color:var(--mut);font-size:12.5px;overflow-wrap:anywhere}
+.tchip{display:inline-flex;align-items:center;gap:6px;padding:2px 10px 2px 3px;border-radius:999px;background:var(--surf2);border:1px solid var(--line);font-size:13px;overflow-wrap:anywhere}
+.tchip small{color:var(--mut);font-size:12px}
+.sumrow{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(var(--nt,4),minmax(0,.7fr));gap:8px;align-items:center;padding:10px 16px}
+.sumrow+.sumrow{border-top:1px solid var(--line)}
+.sumhead{color:var(--mut);font-size:12.5px;font-weight:500;background:var(--surf2)}
+.sumrow .n{text-align:right}
+.sumrow .tn{display:flex;align-items:center;gap:10px;min-width:0;overflow-wrap:anywhere}
+@media (max-width:520px){.sumrow{grid-template-columns:minmax(0,1.5fr) repeat(var(--nt,4),minmax(0,.6fr));padding:10px 12px;gap:4px;font-size:13px}.sumrow .tn .av{display:none}}
+
+/* status pills */
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 7px;border-radius:999px;font-size:12.5px;font-weight:500;line-height:20px;white-space:nowrap;color:var(--c);background:var(--b);letter-spacing:.005em}
+.pill .ic,.pill .ic svg{width:14px;height:14px}
+.pill .n{font-weight:600}
+.pill.s-none{padding:2px 4px;font-weight:400}
+.s-stale.pill,.s-conflict.pill,.s-missing.pill,.s-version-skew.pill{font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;padding:0;margin:0;color:var(--mut);font-size:12.5px}
+.legend li{display:flex;align-items:center;gap:6px}
+
+/* toolbar + matrix */
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.search{position:relative;flex:1 1 240px;min-width:0;max-width:380px}
+.search input{width:100%;height:34px;font:inherit;color:var(--fg);background:var(--surf2);border:1px solid var(--line);border-radius:10px;padding:0 34px 0 32px;transition:border-color 150ms ease,background-color 150ms ease}
+.search input:focus{outline:2px solid var(--accent);outline-offset:1px;background:var(--surf)}
+.search input::placeholder{color:var(--mut);opacity:1}
+.search input::-webkit-search-cancel-button,.search input::-webkit-search-decoration{display:none;-webkit-appearance:none}
+.search>.ic{position:absolute;left:10px;top:9px;color:var(--mut);pointer-events:none}
+.search .x{all:unset;cursor:pointer;position:absolute;right:4px;top:4px;width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--mut)}
+.search .x:focus-visible{outline:2px solid var(--accent)}
+.search .x:active{transform:scale(.9)}
+.search .x[hidden]{display:none}
+.toolbar .dd select{height:34px;background:var(--surf);font-weight:500}
+.toolbar .grow{flex:1}
+.count{color:var(--mut);font-size:13px;white-space:nowrap}
+@media (max-width:700px){.toolbar .dd{flex:1 1 45%}.toolbar .dd select{width:100%}.search{max-width:none;flex-basis:100%}.toolbar .grow{display:none}.count{flex-basis:100%}}
+.wrap{overflow:auto;max-height:min(70vh,760px);scrollbar-width:thin;scrollbar-color:var(--line2) transparent;overscroll-behavior:contain;border-radius:0 0 16px 16px}
+.wrap:focus-visible{outline-offset:-2px}
+table.m{border-collapse:separate;border-spacing:0;width:100%;--hh:42px}
+.m th,.m td{border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;padding:0;background:var(--rowbg,var(--surf))}
+.m tr{--rowbg:var(--surf)}
+.m tr.mce{--rowbg:var(--surf2)}
+@media (hover:hover) and (pointer:fine){.m tr.r:hover{--rowbg:var(--hov)}}
+.m thead th{position:sticky;top:0;z-index:4;background:var(--surf);height:var(--hh);white-space:nowrap;font-weight:600;font-size:12.5px;color:var(--mut);letter-spacing:.01em;box-shadow:0 1px 0 var(--line)}
+.m thead th.pin{left:0;z-index:6}
+.m td.nm,.m th.pin{position:sticky;left:0;z-index:2;min-width:260px;max-width:340px;box-shadow:1px 0 0 var(--line)}
+.m thead th.pin{box-shadow:1px 0 0 var(--line),0 1px 0 var(--line)}
+.pad{padding:0 14px}
+.m td.k{color:var(--mut);white-space:nowrap;padding:0 14px}
+.m td.sel,.m th.sel{background-image:linear-gradient(var(--tint),var(--tint))}
+.m th.sel{color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.m th .btn-h{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;height:var(--hh);padding:0 14px}
+.m th .btn-h:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.m td.cell{position:relative}
+.cc{display:flex;align-items:center;gap:6px;min-height:44px;padding:6px 14px}
+.m td .cb{all:unset;box-sizing:border-box;position:absolute;inset:0;cursor:pointer;transition:background-color 120ms ease}
+.m td .cb:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.m td .cb[aria-expanded=true]{background-image:linear-gradient(var(--tint2),var(--tint2))}
+@media (hover:hover) and (pointer:fine){.m td .cb:hover{background-image:linear-gradient(var(--tint),var(--tint))}}
+.m td .cb:active{background-image:linear-gradient(var(--tint2),var(--tint2))}
+.m td.cell{min-width:140px}
+.stack{display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+.nm .cc{justify-content:space-between}
+.nm .name{overflow-wrap:anywhere;font-weight:500}
+.m tr.mce .name{font-weight:650}
+.nm .chev{color:var(--line2);flex:none}
+tr.hosted .nm .cc{padding-left:34px}
+.nm .meta{display:none;font-weight:400;color:var(--mut);font-size:12px}
+.tag{font-weight:400;font-size:12px;color:var(--mut);margin-left:6px;white-space:nowrap}
+.tag.warn{color:var(--stale)}
+.tag.nid{color:var(--nid)}
+.nbd.s-nid{border:1px dashed var(--c);line-height:16px}
+.reg{font-size:11.5px;line-height:1.2;color:var(--mut);white-space:nowrap}
+/* site sections: the header row sticks under the column header; later headers paint over earlier ones */
+tr.site td{position:sticky;top:var(--hh);z-index:3;background:var(--surf2);border-bottom:1px solid var(--line);box-shadow:0 1px 0 var(--line)}
+.sh{position:sticky;left:0;width:var(--cw,100%);display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:4px 10px 4px 6px;min-height:44px}
+.shb{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 8px;border-radius:8px;font-weight:600;transition:background-color 120ms ease,transform 120ms var(--ease)}
+.shb:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.shb:active{transform:scale(.98)}
+.shb .ic{color:var(--mut);transition:transform 160ms var(--ease)}
+.shb[aria-expanded=true] .ic{transform:rotate(90deg)}
+.shb .sc,.shl .sc{font-weight:400;color:var(--mut)}
+.shl{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 8px;font-weight:600}
+.sp{padding:0 16px 16px}
+.sp .tsec{padding-top:14px}
+.mini{display:flex;flex-wrap:wrap;gap:4px}
+.mini .pill{line-height:18px;font-size:12px}
+.sh .grow{flex:1}
+.shs{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;min-height:34px;padding:0 10px;border-radius:8px;color:var(--accent);font-weight:600;font-size:13px}
+.shs:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.shs[aria-expanded=true]{background:var(--tint2)}
+.shs:active{opacity:.7}
+@media (hover:hover) and (pointer:fine){.shb:hover,.shs:hover{background:var(--hov)}}
+tr.sub td{background:var(--surf);height:30px;border-bottom:1px solid var(--line)}
+tr.sub span{position:sticky;left:14px;display:inline-block;font-weight:600;font-size:12px;color:var(--mut);letter-spacing:.01em}
+.empty{width:var(--cw,100%);position:sticky;left:0;padding:48px 16px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px}
+.empty b{font-size:1rem}
+.mfoot{padding:10px 14px;border-top:1px solid var(--line)}
+@media (max-width:700px){
+.m .c-site,.m .c-env,.m .c-ocp{display:none}
+.m td.nm,.m th.pin{min-width:150px;max-width:170px}
+.nm .meta{display:block}
+.nm .chev{display:none}
+tr.hosted .nm .cc{padding-left:22px}
+.m td.cell{min-width:130px}
+}
+
+/* side sheet: non-modal, no scrim */
+.sheet{position:fixed;z-index:20;top:64px;right:12px;max-height:calc(100vh - 76px);width:min(520px,calc(100vw - 24px));display:flex;flex-direction:column;background:var(--sheet);-webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);border:1px solid var(--line);border-top-color:rgba(255,255,255,.5);border-radius:18px;box-shadow:var(--shbig);transform:translateX(calc(100% + 24px));opacity:0;visibility:hidden;transition:transform 200ms var(--drawer),opacity 160ms ease,visibility 0s linear 200ms}
+.sheet.open{transform:none;opacity:1;visibility:visible;transition:transform 240ms var(--drawer),opacity 200ms ease,visibility 0s}
+.sheet header{display:flex;align-items:flex-start;gap:12px;padding:16px 16px 12px 20px;border-bottom:1px solid var(--line)}
+.sheet header h2{font-size:1.1rem;font-weight:600;letter-spacing:-.015em;overflow-wrap:anywhere}
+.sheet header p{color:var(--mut);margin-top:2px;font-size:13px}
+.sheet .grab{display:none}
+.sheet .close{all:unset;box-sizing:border-box;cursor:pointer;margin-left:auto;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:var(--surf2);color:var(--mut);transition:background-color 120ms ease,transform 120ms var(--ease)}
+.sheet .close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sheet .close:active{transform:scale(.92)}
+@media (hover:hover) and (pointer:fine){.sheet .close:hover{background:var(--hov);color:var(--fg)}}
+.sbody{overflow:auto;padding:4px 20px 20px;overscroll-behavior:contain}
+.tsec{padding-top:16px}
+.tsec+.tsec{margin-top:4px;border-top:1px solid var(--line)}
+.tsec h3{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;font-weight:600}
+.tsec h3 .tn{overflow-wrap:anywhere}
+.callout{display:flex;gap:8px;margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);background:var(--badbg);color:var(--fg);font-size:13px;overflow-wrap:anywhere}
+.callout .ic{color:var(--bad);margin-top:1px}
+.charts{list-style:none;margin:10px 0 0;padding:0;background:var(--surf2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.charts li+li{border-top:1px solid var(--line)}
+.chh{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;padding:9px 12px;transition:background-color 120ms ease}
+.chh:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.chh .chv{color:var(--mut);transition:transform 160ms var(--ease)}
+.chh[aria-expanded=true] .chv{transform:rotate(90deg)}
+.chh .r2{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:4px 0 0 24px}
+@media (hover:hover) and (pointer:fine){.chh:hover{background:var(--hov)}}
+.vchip{display:inline-flex;align-items:baseline;gap:6px;max-width:100%;background:var(--surf);border:1px solid var(--line);border-radius:8px;padding:0 8px;font-size:12px;line-height:20px}
+.vchip code{font-size:12px}
+.vchip .by{color:var(--mut)}
+.tg.warn{display:inline-flex;align-items:center;gap:3px;background:var(--stalebg);color:var(--stale);font-weight:600}
+.tg.warn .ic,.tg.warn .ic svg{width:12px;height:12px}
+.chb{padding:2px 12px 14px;border-top:1px solid var(--line);background:var(--surf)}
+.chb h4{margin:16px 0 6px;font-size:12.5px;font-weight:600;color:var(--mut);letter-spacing:.01em}
+.chb .callout{margin-top:10px}
+.callout.warn{border-color:color-mix(in srgb,var(--stale) 40%,transparent);background:var(--stalebg)}
+.callout.warn .ic{color:var(--stale)}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;margin:0}
+.kv dt{color:var(--mut)}.kv dd{margin:0;overflow-wrap:anywhere}
+.kv .by{color:var(--mut)}
+.hint{color:var(--mut);font-size:12.5px;margin:0 0 8px}
+.lad{list-style:none;margin:0;padding:0 0 0 18px;border-left:2px solid var(--line)}
+.lad li{position:relative;padding:5px 0 7px}
+.lad li::before{content:"";position:absolute;left:-24px;top:11px;width:10px;height:10px;border-radius:50%;background:var(--ok);border:2px solid var(--surf)}
+.lad li.empty::before{background:var(--line2)}
+.lad li.err::before{background:var(--bad)}
+.lad .l1{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
+.lad .ll{font-weight:600}
+.lad .st{color:var(--ok);font-size:12.5px}
+.lad li.empty .st{color:var(--mut)}
+.lad .pn{color:var(--mut);font-size:12px;min-width:1.2em}
+.lad li.err .st{color:var(--bad);font-weight:600}
+.lad .pe{margin-top:3px}
+.pe code{min-width:0}
+.flt{width:100%;height:32px;margin:0 0 6px;font:inherit;color:var(--fg);background:var(--surf2);border:1px solid var(--line);border-radius:9px;padding:0 10px}
+.flt:focus{outline:2px solid var(--accent);outline-offset:1px;background:var(--surf)}
+.eff{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.eff li{padding:6px 10px;display:grid;grid-template-columns:minmax(0,1fr);gap:1px}
+.eff li[hidden]{display:none}
+.eff li+li{border-top:1px solid var(--line)}
+.eff .kk{display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline}
+.eff .kk code:first-child{font-weight:600}
+.eff .sb{color:var(--mut);font-size:12px}
+.eff .sb b{font-weight:600;color:var(--fg)}
+.files{list-style:none;margin:10px 0 0;padding:0;background:var(--surf2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.files li{padding:10px 12px}
+.files li+li{border-top:1px solid var(--line)}
+.files .st{font-size:12.5px;margin-top:2px}
+.files details{margin-top:4px;font-size:12.5px}
+.files summary{cursor:pointer;color:var(--accent);font-weight:500}
+.files .keys{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.files .keys code{background:var(--surf);border:1px solid var(--line);border-radius:6px;padding:0 6px}
+.sview{display:inline-flex;gap:2px;padding:2px;margin-top:8px;background:color-mix(in srgb,var(--fg) 8%,var(--surf));border-radius:9px}
+.sview button{all:unset;box-sizing:border-box;cursor:pointer;padding:3px 12px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--mut)}
+.sview button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.sview button[aria-pressed=true]{background:var(--surf);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.14)}
+.sview[hidden]{display:none}
+.charts .r1{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.charts .cn{font-weight:600;overflow-wrap:anywhere}
+.tg{font-size:11.5px;font-weight:500;border-radius:6px;padding:0 6px;line-height:18px;background:var(--unvbg);color:var(--fg)}
+.tg.own{background:var(--accbg);color:var(--accent)}
+.charts .sc{color:var(--mut)}
+.charts .cfl{margin-top:4px;display:flex;gap:6px;align-items:center;color:var(--bad);font-size:12.5px;font-weight:600}
+.charts .cfl.version-skew{color:var(--stale)}
+.catn{margin-left:auto;color:var(--mut);font-weight:400;font-size:12.5px}
+@media (max-width:700px){
+.sheet{top:auto;left:0;right:0;bottom:0;width:100%;max-height:78vh;border-radius:20px 20px 0 0;transform:translateY(100%)}
+.sheet .grab{display:block;position:absolute;top:6px;left:50%;width:36px;height:5px;margin-left:-18px;border-radius:3px;background:var(--line2)}
+.sheet header{padding-top:20px}
+.sbody{padding-bottom:max(20px,env(safe-area-inset-bottom))}
+}
+@media (prefers-reduced-motion:reduce){
+*{transition-duration:.01ms!important;animation-duration:.01ms!important}
+.sheet,.sheet.open{transform:none!important;transition:opacity 200ms ease,visibility 0s linear 200ms!important}
+.sheet.open{transition:opacity 200ms ease,visibility 0s!important}
+}
+@media (prefers-reduced-transparency:reduce){
+.mast{background:var(--mastsolid);-webkit-backdrop-filter:none;backdrop-filter:none}
+.sheet{background:var(--sheetsolid);-webkit-backdrop-filter:none;backdrop-filter:none}
+}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.mast{background:var(--mastsolid)}.sheet{background:var(--sheetsolid)}}
+@media (prefers-contrast:more){.mast{background:var(--mastsolid)}.sheet{background:var(--sheetsolid);border-color:var(--fg)}.surface,.inset,.tile{border-color:var(--line2)}}
+footer{max-width:1400px;margin:0 auto;padding:24px 16px 40px;color:var(--mut);font-size:12.5px}
+@media (min-width:900px){footer{padding:24px 28px 40px}}
+footer ul{display:flex;flex-wrap:wrap;gap:2px 16px;list-style:none;padding:0;margin:4px 0 0}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="mast">
+  <div class="brand">
+    <svg viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" fill="#2f6fe4"/><rect x="5.5" y="5.5" width="6.5" height="6.5" rx="1.8" fill="#fff"/><rect x="14" y="5.5" width="6.5" height="6.5" rx="1.8" fill="#fff" opacity=".7"/><rect x="5.5" y="14" width="6.5" height="6.5" rx="1.8" fill="#fff" opacity=".7"/><rect x="14" y="14" width="6.5" height="6.5" rx="1.8" fill="#fff" opacity=".4"/></svg>
+    <span class="t">Fleet Map</span>
+  </div>
+  <div class="mast-r">
+    <span class="chip" id="gen"></span>
+    <button class="mbtn" id="brbtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="brpop" hidden></button>
+    <div class="brpop" id="brpop" role="dialog" aria-modal="false" aria-labelledby="brt" hidden>
+      <h2 id="brt">Branches</h2>
+      <p class="hint">Pick a branch per tenant. Tenants you leave alone stay on their default branch.</p>
+      <div id="brlist"></div>
+      <p class="brerr" id="brerr" role="alert" hidden></p>
+      <div class="bract"><button class="btn" id="brreset" type="button">Reset all to default</button><button class="btn pri" id="brapply" type="button">Apply</button></div>
+    </div>
+    <div class="dd sw" id="sw"><label class="sr" for="tenant">Tenant</label><select id="tenant"></select></div>
+  </div>
+</header>
+<div class="viewbar" id="viewbar" hidden></div>
+<div class="shell">
+<nav class="sitenav" id="sitenav" aria-label="Sites"><p class="nh" aria-hidden="true">Sites</p><ul id="sitelist"></ul></nav>
+<main id="main">
+  <div class="title"><h1 id="ctx-t"></h1><p id="ctx-s"></p><p id="ctx-r"></p></div>
+  <div id="banner"></div>
+  <div class="tiles" id="tiles" role="group" aria-label="Filter by status"></div>
+  <div class="seg" role="tablist" aria-label="Views" id="tabs">
+    <button type="button" role="tab" id="tab-actions" aria-controls="panel-actions" data-tab="actions">Action items</button>
+    <button type="button" role="tab" id="tab-clusters" aria-controls="panel-clusters" data-tab="clusters">All clusters</button>
+    <button type="button" role="tab" id="tab-conflicts" aria-controls="panel-conflicts" data-tab="conflicts">Conflicts <span class="badge" id="conf-n"></span></button>
+    <button type="button" role="tab" id="tab-settings" aria-controls="panel-settings" data-tab="settings" hidden>Site settings</button>
+  </div>
+  <div role="tabpanel" id="panel-actions" aria-labelledby="tab-actions"><div id="area"></div></div>
+  <div role="tabpanel" id="panel-clusters" aria-labelledby="tab-clusters">
+    <section class="surface" aria-label="All clusters">
+      <div class="toolbar">
+        <div class="search"><span class="ic" aria-hidden="true"></span><label class="sr" for="q">Find cluster</label><input id="q" type="search" placeholder="Search clusters" autocomplete="off"><button class="x" id="qx" type="button" aria-label="Clear search" hidden></button></div>
+        <div class="dd"><label class="sr" for="fs">Status</label><select id="fs"><option value="all">All statuses</option><option value="onboarded">Onboarded</option><option value="stale">Stale only</option><option value="available">Available only</option><option value="conflict">Conflicts only</option></select></div>
+        <div class="dd"><label class="sr" for="fenv">Environment</label><select id="fenv"></select></div>
+        <button class="btn" id="clr" type="button">Clear filters</button>
+        <button class="btn" id="foldall" type="button">Collapse all</button>
+        <span class="grow"></span>
+        <p class="count" id="count" aria-live="polite"></p>
+      </div>
+      <div class="wrap" id="wrap" role="region" aria-label="Cluster matrix" tabindex="0"><table class="m" id="m"></table></div>
+      <div class="mfoot"><ul class="legend" id="legend"></ul></div>
+    </section>
+  </div>
+  <div role="tabpanel" id="panel-conflicts" aria-labelledby="tab-conflicts"><div id="conf"></div></div>
+  <div role="tabpanel" id="panel-settings" aria-labelledby="tab-settings"><div id="settings"></div></div>
+</main>
+</div>
+<footer id="foot"></footer>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="false" aria-labelledby="sheet-t" inert>
+  <span class="grab" aria-hidden="true"></span>
+  <header><div><h2 id="sheet-t"></h2><p id="sheet-s"></p><div class="sview" id="sview" role="group" aria-label="Group charts by" hidden></div></div><button class="close" id="sclose" type="button" aria-label="Close details"></button></header>
+  <div class="sbody" id="sbody"></div>
+</aside>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const BASE = JSON.parse(document.getElementById('data').textContent);
+let D = BASE;  // the default view, or the branch view last fetched from api/view
+const $ = id => document.getElementById(id);
+function h(tag, a, ...kids) {
+  const e = document.createElement(tag);
+  for (const k in a || {}) { const v = a[k], aria = k.startsWith('aria-'); if (v == null || (v === false && !aria)) continue; if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v === true && !aria ? '' : String(v)); }
+  e.append(...kids.flat().filter(x => x != null && x !== false));
+  return e;
+}
+/* one icon set: 16px grid, 1.65 stroke (static strings only, never data) */
+const P = {
+  check: '<path d="M3 8.5l3.2 3L13 4.5"/>',
+  unv: '<circle cx="8" cy="8" r="6" stroke-dasharray="2.6 2.2"/><path d="M5.6 8.2l1.7 1.7 3.1-3.4"/>',
+  stale: '<path d="M8 2.4L14.2 13H1.8z"/><path d="M8 6.6v3M8 11.5h.01"/>',
+  miss: '<circle cx="8" cy="8" r="6" stroke-dasharray="2.6 2.2"/><path d="M8 5.2v3.2M8 10.6h.01"/>',
+  plus: '<circle cx="8" cy="8" r="6"/><path d="M8 5.5v5M5.5 8h5"/>',
+  minus: '<path d="M4.5 8h7"/>',
+  conflict: '<circle cx="8" cy="8" r="6"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4"/>',
+  info: '<circle cx="8" cy="8" r="6"/><path d="M8 7.4v3.4M8 5.2h.01"/>',
+  chev: '<path d="M6 3.8L10.2 8 6 12.2"/>',
+  branch: '<circle cx="4.5" cy="3.8" r="1.7"/><circle cx="4.5" cy="12.2" r="1.7"/><circle cx="11.5" cy="5.6" r="1.7"/><path d="M4.5 5.5v5M11.5 7.3c0 2.6-7 1.4-7 3.2"/>',
+  down: '<path d="M4 6.2L8 10l4-3.8"/>',
+  search: '<circle cx="7" cy="7" r="4.3"/><path d="M10.3 10.3L13.5 13.5"/>',
+  x: '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
+  copy: '<rect x="5.5" y="5.5" width="7" height="7.5" rx="1.6"/><path d="M10.5 3.2H5.2A1.7 1.7 0 003.5 4.9v5.4"/>',
+  nid: '<circle cx="8" cy="8" r="6" stroke-dasharray="2.6 2.2"/><path d="M5.6 8h4.8"/>',
+  grid: '<rect x="3" y="3" width="4" height="4" rx="1"/><rect x="9" y="3" width="4" height="4" rx="1"/><rect x="3" y="9" width="4" height="4" rx="1"/><rect x="9" y="9" width="4" height="4" rx="1"/>'
+};
+const icon = (n, cls) => { const s = h('span', { class: 'ic' + (cls ? ' ' + cls : ''), 'aria-hidden': 'true' }); s.innerHTML = '<svg viewBox="0 0 16 16">' + P[n] + '</svg>'; return s; };
+document.querySelector('.search>.ic').innerHTML = '<svg viewBox="0 0 16 16">' + P.search + '</svg>';
+$('qx').append(icon('x')); $('sclose').append(icon('x'));
+document.querySelectorAll('.dd').forEach(s => s.append(icon('down')));
+const ST = { onboarded: ['Onboarded', 'check'], conflict: ['Conflict', 'conflict'], unverified: ['Unverified', 'unv'], stale: ['Stale', 'stale'], available: ['Available', 'plus'], missing: ['Missing', 'miss'], none: ['n/a', 'minus'], 'version-skew': ['Version skew', 'stale'], nid: ['Not in day2', 'nid'] };
+const KL = { conflict: 'Conflict', 'version-skew': 'Version skew' };
+const stat = c => c.status === 'onboarded' && c.reason ? 'unverified' : c.status;
+const pill = (k, n) => h('span', { class: 'pill s-' + k }, icon(ST[k][1]), ST[k][0], n ? h('span', { class: 'n' }, n) : null);
+const KIND = { mce: 'MCE', hosted: 'hosted', upi: 'UPI', hub: 'hub' };
+const btag = t => S.refs[t] ? h('span', { class: 'btag', title: 'Branch ' + S.refs[t] }, S.refs[t]) : null;
+const plural = (n, a, b) => n + ' ' + (n === 1 ? a : b);
+
+function avatar(name, small) {
+  const w = name.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  const i = ((w.length > 1 ? w[0][0] + w[1][0] : name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2)) || '?').toUpperCase();
+  let n = 0; for (const c of name) n = (n * 31 + c.charCodeAt(0)) >>> 0;
+  return h('span', { class: 'av av' + (n % 6) + (small ? ' s' : ''), 'data-i': i, 'aria-hidden': 'true' });
+}
+
+let rowBy, confl, nidSet, SITES;
+const key = (n, t) => JSON.stringify([n, t]);
+const HUB = '_hub';
+function derive() {  // everything computed from D; runs again when a branch view replaces it
+  rowBy = Object.create(null); confl = Object.create(null);
+  D.rows.forEach(r => rowBy[r.name] = r);
+  D.conflicts.forEach(c => c.tenants.forEach(x => (confl[key(c.cluster, x)] ||= []).push(c)));
+  nidSet = new Set((D.not_in_day2 || []).map(x => x.cluster));
+  SITES = [...new Set(D.rows.map(r => r.site).filter(Boolean))].sort().concat(D.rows.some(r => r.kind === 'hub') ? [HUB] : []);
+}
+/* site scope: '' = all sites, HUB = the management hub, otherwise a site name */
+const inSite = (r, s) => !s || (!!r && (s === HUB ? r.kind === 'hub' : r.kind !== 'hub' && r.site === s));
+const siteRows = s => D.rows.filter(r => inSite(r, s));
+const nidIn = s => (D.not_in_day2 || []).filter(x => inSite(rowBy[x.cluster], s));
+const tConf = (t, s = S.site) => D.conflicts.filter(c => (!t || c.tenants.includes(t)) && inSite(rowBy[c.cluster], s));
+const sList = (t, k, s = S.site) => D.summary[t][k].filter(x => inSite(rowBy[x.cluster], s));
+function counts(t, s = S.site) {
+  const ts = t ? [t] : D.tenants, rs = siteRows(s), n = f => ts.reduce((a, x) => a + rs.filter(r => f(r.cells[x])).length, 0), l = k => ts.reduce((a, x) => a + sList(x, k, s).length, 0);
+  return { missing: l('missing'), onboarded: n(c => c.status === 'onboarded'), stale: l('stale'), available: l('available'), conflict: tConf(t, s).length, nid: nidIn(s).length, col: tConf(t, s).filter(c => c.kind === 'conflict').length, get dup() { return this.conflict - this.col; }, unv: n(c => stat(c) === 'unverified') };
+}
+
+const S = { tenant: null, tab: null, q: '', status: 'all', site: '', env: '', open: null, trig: null, fold: new Set(), exp: new Set(), view: 'tenant', cur: null, refs: {}, note: '' };  // refs: {tenant: branch} for tenants not on their default branch
+const TABS = ['actions', 'clusters', 'conflicts', 'settings'];
+const hasSettings = () => !!S.site && S.site !== HUB;
+const tabsNow = () => TABS.filter(x => x !== 'settings' || hasSettings());
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const flash = el => reduce || el.animate([{ opacity: .5 }, { opacity: 1 }], { duration: 170, easing: 'cubic-bezier(.23,1,.32,1)' });
+const defaultTab = () => { if (!S.tenant) return 'clusters'; const c = counts(S.tenant); return c.stale + c.available + c.missing + c.conflict > 0 ? 'actions' : 'clusters'; };
+const curTab = () => tabsNow().includes(S.tab) ? S.tab : defaultTab();
+
+/* ---------- masthead, alerts, footer ---------- */
+const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+function ago(iso) {
+  let v = (new Date(iso) - Date.now()) / 1000;
+  for (const [n, u] of [[60, 'second'], [60, 'minute'], [24, 'hour'], [1e9, 'day']]) { if (Math.abs(v) < n) return rtf.format(Math.round(v), u); v /= n; }
+}
+function renderChrome() {
+const abs = new Date(D.generated).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+$('gen').replaceChildren(h('i'), 'Updated ' + ago(D.generated)); $('gen').title = abs;
+$('banner').replaceChildren();
+if (D.banner) $('banner').append(h('div', { class: 'banner info', role: 'note' }, icon('info'), h('div', null,
+  h('p', null, h('b', null, 'This page has no day1 data, so some things cannot be detected.')),
+  h('p', { class: 'mut' }, 'Stale clusters are not shown, and "Available" only means another tenant already has the cluster.'),
+  h('details', { class: 'more' }, h('summary', null, 'What this means'),
+    h('p', null, 'Day1 is the list of clusters that should exist. Without it, a folder for a cluster that no longer exists looks normal. Duplicate folders and chart conflicts are still found.')))));
+if ((D.warnings || []).length) $('banner').append(h('div', { class: 'banner warn', role: 'note' }, icon('stale'), h('details', null,
+  h('summary', null, 'Some files could not be read (' + D.warnings.length + ')'),
+  h('p', { class: 'mut' }, 'They were skipped, so the data below may be incomplete.'),
+  h('ul', null, D.warnings.map(w => h('li', null, w))))));
+const shas = Object.entries(D.repos || {}).filter(e => e[1]);
+$('foot').replaceChildren(h('p', null, 'Updated ' + ago(D.generated) + ' · ' + abs), ...(shas.length ? [h('p', null, 'Built from these repository commits'), h('ul', null, shas.map(([n, x]) => h('li', null, n + ' ', h('code', null, x.slice(0, 7)))))] : [h('p', null, 'Built from local files')]));
+$('legend').replaceChildren(...[['onboarded', 'Onboarded'], ['unverified', 'Unverified: UPI has no day1 to check'], ['stale', 'Stale: remove the folder'], ['available', 'Available: can be added'], ...(D.expected_on ? [['missing', 'Missing: day1 registered it, folder absent']] : []), ['none', 'n/a: not applicable']]
+  .map(([k, t]) => h('li', null, h('span', { class: 'pill s-' + k }, icon(ST[k][1])), t)));
+}
+
+/* ---------- copyable paths ---------- */
+function copy(btn, code, p) {
+  const t = btn.querySelector('.cp-t'), ic = btn.querySelector('.ic');
+  const done = ok => { btn.classList.add('done'); t.textContent = ok ? 'Copied' : 'Press Ctrl+C'; ic.innerHTML = '<svg viewBox="0 0 16 16">' + P.check + '</svg>'; btn.setAttribute('aria-label', (ok ? 'Copied ' : 'Selected ') + p);
+    setTimeout(() => { btn.classList.remove('done'); t.textContent = ''; ic.innerHTML = '<svg viewBox="0 0 16 16">' + P.copy + '</svg>'; btn.setAttribute('aria-label', 'Copy ' + p); }, 1600); };
+  const select = () => { const r = document.createRange(); r.selectNodeContents(code); const g = getSelection(); g.removeAllRanges(); g.addRange(r); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(p).then(() => done(true), () => { select(); done(false); });
+  else { select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e) {} done(ok); }
+}
+function pathEl(p) {
+  const code = h('code', null, p), b = h('button', { class: 'copy', type: 'button', 'aria-label': 'Copy ' + p, onclick: () => copy(b, code, p) }, icon('copy'), h('span', { class: 'cp-t', 'aria-live': 'polite' }));
+  return h('span', { class: 'pe' }, code, b);
+}
+
+/* ---------- context title, tiles, tabs ---------- */
+const SLABEL = s => s === HUB ? 'Management hub' : s || 'All sites';
+const vkey = v => v.split('.').map(Number);
+const vcmp = (a, b) => { const x = vkey(a), y = vkey(b); for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
+function topology() {
+  const rs = siteRows(S.site), n = k => rs.filter(r => r.kind === k).length, vs = [...new Set(rs.map(r => r.version).filter(Boolean))].sort(vcmp);
+  return [!S.site && plural(uniq('site').length, 'site', 'sites'), n('mce') && plural(n('mce'), 'MCE', 'MCEs'), n('hosted') && plural(n('hosted'), 'hosted cluster', 'hosted clusters'), n('upi') && n('upi') + ' UPI', n('hub') && plural(n('hub'), 'hub cluster', 'hub clusters'),
+    vs.length && 'OCP ' + (vs.length > 1 ? vs[0] + '\u2013' + vs[vs.length - 1] : vs[0])].filter(Boolean).join(' \u00b7 ');
+}
+function renderCtx() {
+  const t = S.tenant, c = counts(t);
+  $('ctx-t').replaceChildren(SLABEL(S.site), ...(t ? [h('span', { class: 'tn' }, ' \u00b7 ' + t), ...(S.refs[t] ? [' ', btag(t)] : [])] : []));
+  $('ctx-s').textContent = topology();
+  const todo = [c.missing && plural(c.missing, 'folder missing', 'folders missing'), c.stale && plural(c.stale, 'stale folder', 'stale folders'), c.available && plural(c.available, 'cluster you can add', 'clusters you can add'), c.col && plural(c.col, 'conflict', 'conflicts'), c.dup && plural(c.dup, 'version warning', 'version warnings')].filter(Boolean);
+  $('ctx-r').textContent = t ? (todo.length ? 'To review: ' + todo.join(', ') + '.' : '') : 'Across ' + plural(D.tenants.length, 'tenant', 'tenants') + '. Pick a tenant to see what to do next.';
+  $('tenant').closest('.dd').querySelector('.av')?.remove();
+  $('sw').prepend(t ? avatar(t) : h('span', { class: 'av av5' }, icon('grid')));
+  $('sw').querySelector('.av').classList.add('av');
+}
+const TL0 = () => [['onboarded', 'Onboarded', 'check'], ...(D.expected_on ? [['missing', 'Missing', 'miss']] : []), ['stale', 'Stale', 'stale'], ['available', 'Available', 'plus'], ['conflict', 'Conflicts', 'conflict']];
+function renderTiles() {
+  const t = S.tenant, c = counts(t), TL = TL0().concat(!t && c.nid ? [['nid', 'Not in day2', 'nid']] : []);
+  document.documentElement.style.setProperty('--nt', TL.length);
+  const cap = { onboarded: t ? 'clusters with a folder' + (c.unv ? ` (${c.unv} unverified)` : '') : 'cluster folders across all tenants', nid: 'day1 clusters with no day2 folder', stale: t ? 'folders to remove' : 'stale folders across all tenants',
+    available: t ? 'clusters you can add' : 'clusters not yet added, all tenants', missing: t ? 'registered by day1, no folder' : 'registered by day1, no folder, all tenants', conflict: `${plural(c.col, 'conflict', 'conflicts')} \u00b7 ${plural(c.dup, 'version warning', 'version warnings')}` };
+  $('tiles').replaceChildren(...TL.map(([k, l, ic]) => h('button', { class: 'tile', type: 'button', 'aria-pressed': S.status === k, onclick: () => tileClick(k) },
+    h('span', { class: 'top' }, h('span', { class: 'cir s-' + (k === 'onboarded' ? 'onboarded' : k) }, icon(ic)), l),
+    h('span', { class: 'num' }, c[k]), h('span', { class: 'cap' }, cap[k]))));
+}
+function tileClick(k) {
+  S.status = S.status === k ? 'all' : k; $('fs').value = S.status;
+  if (S.status !== 'all') setTab('clusters');
+  renderTiles(); renderMatrix(); flash($('wrap'));
+}
+const setCw = () => { const w = $('wrap').clientWidth; if (w > 0) $('wrap').style.setProperty('--cw', (w - 2) + 'px'); };
+function renderTabs() {
+  const t = curTab(), n = tConf(S.tenant).length;
+  $('tab-settings').hidden = !hasSettings();
+  document.querySelectorAll('#tabs [role=tab]').forEach(b => { const on = b.dataset.tab === t; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; $('panel-' + b.dataset.tab).hidden = !on; });
+  const bd = $('conf-n'); bd.textContent = n; const cc = counts(S.tenant); bd.className = 'badge' + (cc.col ? ' red' : n ? ' amber' : ''); setCw();
+}
+function setTab(t) { S.tab = t; writeHash(); renderTabs(); }
+document.querySelectorAll('#tabs [role=tab]').forEach(b => {
+  b.onclick = () => { setTab(b.dataset.tab); closeSheet(false); };
+  b.onkeydown = e => {
+    const T = tabsNow(), i = T.indexOf(b.dataset.tab), j = { ArrowRight: (i + 1) % T.length, ArrowLeft: (i + T.length - 1) % T.length, Home: 0, End: T.length - 1 }[e.key];
+    if (j == null) return; e.preventDefault(); setTab(T[j]); $('tab-' + T[j]).focus();
+  };
+});
+
+/* ---------- action items ---------- */
+const LIM = 6, more = {};
+function limited(k, arr, render, cls) {
+  const all = more[k];
+  return [h('div', { class: 'inset' }, h('ul', { class: cls }, (all ? arr : arr.slice(0, LIM)).map(render))),
+    arr.length > LIM && h('button', { class: 'btn more', type: 'button', 'data-more': k, 'aria-expanded': !!all,
+      onclick: () => { more[k] = !all; renderActions(); renderConflicts(); const b = document.querySelector(`[data-more=${k}]`); if (b) b.focus(); } }, all ? 'Show fewer' : 'Show all ' + arr.length)];
+}
+const ghead = (k, title, sub) => h('div', { class: 'ghead' }, h('span', { class: 'cir s-' + k }, icon(k === 'conflict' ? 'conflict' : ST[k][1])), h('div', null, h('h2', null, title), h('p', null, sub)));
+function actions(t, kind) {
+  const list = sList(t, kind), stale = kind === 'stale', miss = kind === 'missing';
+  if (!list.length) return null;  // only sections that have something to act on
+  return h('section', null,
+    ghead(kind, (stale ? 'Stale: remove these folders' : miss ? 'Missing: create these folders' : 'Available: add these') + ' (' + list.length + ')',
+      stale ? 'These clusters no longer match day1. Delete the folder from your repo.' : miss ? 'Day1 registered these clusters for you (copy_to_sigs) but the folder does not exist. The copy Job may have failed. Create the folder.' : 'These clusters exist but your repo has no folder for them. Create the folder to onboard.'),
+    limited(stale ? 'stale' : miss ? 'miss' : 'avail', list, x => {
+      const r = rowBy[x.cluster], dup = x.reason.startsWith('folder exists twice'), moved = x.reason.startsWith('day1 has it');
+      const why = stale ? (dup ? x.reason + '. Keep one and delete the other.' : moved ? x.reason + '. Move or remove the folder.' : 'Not in day1 any more, so the folder is left over.')
+        : x.reason.includes('lacks parent MCE') ? 'Add the parent MCE folder first.' : miss ? 'Registered by day1 for your repo, but the folder is not there.' : D.banner ? 'Another tenant already has it.' : 'In day1, but your repo has no folder for it.';
+      const rb = h('button', { class: 'rowbtn', type: 'button', 'aria-haspopup': 'dialog', onclick: () => openSheet(r, t, rb) }, x.cluster);
+      return h('li', null, h('div', { class: 'nmrow' }, rb, h('span', { class: 'kind' }, KIND[r.kind])),
+        h('div', { class: 'why' }, why),
+        !dup && h('div', { class: 'path' }, h('span', { class: 'l' }, stale ? 'Delete' : 'Create'), pathEl(x.path)),
+        !stale && x.reason.includes('lacks parent MCE') && h('div', { class: 'path' }, h('span', { class: 'l' }, 'Also create'), pathEl(`sites/${r.site}/${r.env || '<env>'}/mces/${r.mce}/in-cluster/`)));
+    }, 'acts')
+  );
+}
+function nidSection() {
+  const list = nidIn(S.site);
+  if (!list.length) return null;
+  return h('section', { id: 'nid-list', style: 'margin-top:24px' }, ghead('nid', 'In day1, not in day2 (' + list.length + ')', 'No tenant repo has a folder for these clusters, so nothing from day2 is deployed to them.'),
+    limited('nid', list, x => {
+      const r = rowBy[x.cluster], rb = h('button', { class: 'rowbtn', type: 'button', 'aria-haspopup': 'dialog', onclick: () => openSheet(r, null, rb) }, x.cluster);
+      return h('li', null, h('div', { class: 'nmrow' }, rb, h('span', { class: 'kind' }, KIND[x.kind]), h('span', { class: 'mut' }, [x.site, x.kind === 'hosted' && x.mce, x.version].filter(Boolean).join(' / '))),
+        x.expected.length > 0 && h('div', { class: 'nmrow', style: 'margin-top:6px' }, h('span', { class: 'mut' }, 'Expected in'), x.expected.map(e => h('span', { class: 'tchip' }, avatar(e, true), e, btag(e)))),
+        h('div', { class: 'why' }, x.reason),
+        x.expected.map(e => h('div', { class: 'path' }, h('span', { class: 'l' }, 'Create in ' + e), pathEl(x.paths[e]))));
+    }, 'acts'));
+}
+function renderActions() {
+  const t = S.tenant;
+  if (t) { const n = nidIn(S.site).length, secs = [D.expected_on && actions(t, 'missing'), actions(t, 'stale'), actions(t, 'available')].filter(Boolean);
+    return $('area').replaceChildren(...(secs.length ? [h('div', { class: 'cols' }, secs)] : [h('p', { class: 'mut' }, `Nothing to act on for ${t} at ${S.site ? SLABEL(S.site) : 'all sites'}.`)]),
+    ...(n > 0 ? [h('p', { class: 'mut nidhint', style: 'margin:16px 4px 0' }, n === 1 ? '1 cluster in day1 has no day2 folder in any repo. Switch to All tenants to see it.' : n + ' clusters in day1 have no day2 folder in any repo. Switch to All tenants to see them.')] : [])); }
+  const head = h('div', { class: 'sumrow sumhead' }, ['Tenant', 'Onboarded', ...(D.expected_on ? ['Missing'] : []), 'Stale', 'Available', 'Conflicts'].map((x, i) => h('span', { class: i ? 'n' : '' }, x)));
+  $('area').replaceChildren(h('section', null, ghead('onboarded', 'Fleet summary', 'Choose a tenant to see its folders to remove or add.'),
+    h('div', { class: 'inset' }, head, D.tenants.map(x => {
+      const c = counts(x), np = (k, n) => h('span', { class: 'n' }, n ? pill(k, n) : h('span', { class: 'mut' }, 0));
+      return h('div', { class: 'sumrow' }, h('span', { class: 'tn' }, avatar(x), h('button', { class: 'link', type: 'button', onclick: () => setTenant(x) }, x), btag(x)),
+        h('span', { class: 'n' }, c.onboarded), D.expected_on && np('missing', c.missing), np('stale', c.stale), np('available', c.available), np('conflict', c.conflict));
+    }))), nidSection());
+}
+
+/* ---------- conflicts ---------- */
+const revLabel = r => r === 'HEAD' ? 'HEAD (repo default branch)' : r;
+const entries = c => h('ul', { class: 'ents', 'aria-label': 'Entries on ' + c.cluster }, c.entries.map(e => h('li', null,
+  h('span', { class: 'tchip' }, avatar(e.tenant, true), e.tenant, btag(e.tenant)), h('code', null, e.chart), h('span', { class: 'tg ' + e.origin }, e.origin),
+  e.repourl != null && h('span', { class: 'em' }, 'source ', h('code', null, e.repourl + (e.path ? ' \u00b7 ' + e.path : ''))),
+  h('span', { class: 'em' }, 'revision ', e.rev == null ? 'hidden' : h('code', null, revLabel(e.rev)), ' \u00b7 set by ' + e.by))));
+function renderConflicts() {
+  const t = S.tenant, cs = tConf(t), other = tConf(null).length - cs.length, col = cs.filter(c => c.kind === 'conflict').length, dup = cs.length - col;
+  const otherLine = t && other > 0 && h('p', { class: 'mut', style: 'margin:10px 4px 0' }, plural(other, 'other conflict', 'other conflicts') + ' between other tenants. Choose All tenants to see them.');
+  $('conf').replaceChildren(...(cs.length ? [h('section', null,
+    ghead('conflict', [col && plural(col, 'conflict', 'conflicts'), dup && plural(dup, 'version warning', 'version warnings')].filter(Boolean).join(' \u00b7 ') + (t ? ' involving ' + t : ''),
+      'Conflict: the same chart source (repo and path) at the same revision deployed more than once on a cluster. Warning: the same chart source at different revisions.'),
+    limited('conf', cs, c => h('li', null, h('div', { class: 'nmrow' }, h('b', null, c.cluster), pill(c.kind)), h('div', { class: 'why' }, c.reason), entries(c)), 'acts conf'), otherLine)]
+    : [otherLine || h('p', { class: 'mut' }, `Nothing to act on for ${t || 'any tenant'} at ${S.site ? SLABEL(S.site) : 'all sites'}.`)]));
+}
+
+/* ---------- matrix ---------- */
+const uniq = k => [...new Set(D.rows.map(r => r[k]).filter(Boolean))].sort();
+const fill = (id, label, vals) => $(id).replaceChildren(new Option(label, ''), ...vals.map(v => new Option(v, v)));
+function fillStatus() {
+  $('fs').replaceChildren(...[['all', 'All statuses'], ['onboarded', 'Onboarded'], ...(D.expected_on ? [['missing', 'Missing only']] : []), ['stale', 'Stale only'], ['available', 'Available only'], ['conflict', 'Conflicts only'], ...(nidSet.size ? [['nid', 'Not in day2']] : [])].map(([v, l]) => new Option(l, v)));
+  $('fs').value = S.status;
+}
+function fillEnv() { const es = [...new Set(siteRows(S.site).map(r => r.env).filter(Boolean))].sort(); if (!es.includes(S.env)) S.env = ''; fill('fenv', 'All environments', es); $('fenv').value = S.env; }
+const tenantsShown = () => S.tenant ? [S.tenant, ...D.tenants.filter(x => x !== S.tenant)] : D.tenants;
+function match(r) {
+  if (S.q && !r.name.toLowerCase().includes(S.q.trim().toLowerCase())) return false;
+  if (!inSite(r, S.site)) return false;
+  if (S.env && r.env !== S.env) return false;
+  if (S.status === 'nid') return nidSet.has(r.name);
+  if (S.status !== 'all') return (S.tenant ? [S.tenant] : D.tenants).some(t => S.status === 'conflict' ? confl[key(r.name, t)] : r.cells[t].status === S.status);
+  return true;
+}
+const filtered = () => S.q || S.env || S.status !== 'all';
+function cell(r, t) {
+  const c = r.cells[t], k = stat(c), n = c.charts.length, cf = confl[key(r.name, t)];
+  const body = h('span', { class: 'stack' }, pill(k, n), cf && cf.some(q => q.kind === 'conflict') && pill('conflict'), cf && cf.some(q => q.kind === 'version-skew') && pill('version-skew'), D.expected_on && c.reg === 'day1' && h('span', { class: 'reg', title: 'Registered by day1 (copy_to_sigs)' }, 'via day1'));
+  const td = h('td', { class: 'cell' + (t === S.tenant ? ' sel' : '') }, h('div', { class: 'cc' }, body));
+  if (n || c.reason || cf || (c.avail || []).length) { const b = h('button', { class: 'cb', type: 'button', 'aria-expanded': 'false', 'aria-haspopup': 'dialog', 'data-k': key(r.name, t),
+    'aria-label': `${r.name} for ${t}: ${ST[k][0]}${n ? ', ' + plural(n, 'chart', 'charts') : ''}${cf ? ', ' + [...new Set(cf.map(q => q.kind))].join(' and ') : ''}${D.expected_on && c.reg === 'day1' ? ', registered by day1' : ''}. Show details`, onclick: () => openSheet(r, t, b) }); td.append(b); }
+  return td;
+}
+function renderMatrix() {
+  const m = $('m'), cols = tenantsShown(), ncol = 4 + cols.length;
+  const vis = D.rows.filter(match), hosts = new Set(vis.filter(r => r.kind === 'hosted').map(r => r.mce));
+  const shown = D.rows.filter(r => vis.includes(r) || (r.kind === 'mce' && hosts.has(r.name)));
+  $('clr').hidden = !filtered(); $('qx').hidden = !S.q;
+  const thead = h('thead', null, h('tr', null,
+    h('th', { class: 'pin', scope: 'col' }, h('span', { class: 'pad' }, 'Cluster')),
+    h('th', { class: 'c-site', scope: 'col' }, h('span', { class: 'pad' }, 'Site')),
+    h('th', { class: 'c-env', scope: 'col' }, h('span', { class: 'pad' }, 'Env')),
+    h('th', { class: 'c-ocp', scope: 'col' }, h('span', { class: 'pad' }, 'OCP')),
+    cols.map(t => h('th', { scope: 'col', class: t === S.tenant ? 'sel' : '' }, h('button', { class: 'btn-h', type: 'button', 'aria-pressed': t === S.tenant, title: t === S.tenant ? 'Show all tenants' : 'Show only ' + t, onclick: () => setTenant(t === S.tenant ? null : t) }, avatar(t, true), t, btag(t))))));
+  /* all sites: foldable section per site. one site: a plain section per env (MCE rows then carry their hosted clusters) */
+  const one = !!S.site, tb = h('tbody'), siteOf = r => one ? r.env : r.kind === 'hub' ? HUB : r.site, ts = S.tenant ? [S.tenant] : D.tenants, visSet = new Set(vis);
+  const last = x => x === HUB || (one && x === '');
+  const keys = [...new Set(shown.map(siteOf))].sort((a, b) => last(a) - last(b) || a.localeCompare(b));
+  $('foldall').hidden = one;
+  const rowEl = r => {
+    const nb = h('button', { class: 'cb', type: 'button', 'aria-expanded': 'false', 'aria-haspopup': 'dialog', 'aria-label': `${r.name}: show details for all tenants`, onclick: () => openSheet(r, null, nb) });
+    const nc = h('div', { class: 'cc' }, h('span', null, h('span', { class: 'name' }, r.name),
+        r.source === 'sigs-only' && !D.banner && (r.kind === 'mce' || r.kind === 'hosted') && h('span', { class: 'tag' }, 'not in day1'),
+        nidSet.has(r.name) && h('span', { class: 'tag nid' }, 'not in day2'),
+        (r.warns || []).length > 0 && h('span', { class: 'tag warn' }, '.yml'),
+        (r.workers || []).length > 0 && h('span', { class: 'tag warn' }, 'upgrading'),
+        h('span', { class: 'meta' }, [r.site, r.env, r.version].filter(Boolean).join(' \u00b7 '))), icon('chev', 'chev'));
+    return h('tr', { class: 'r ' + r.kind }, h('td', { class: 'nm' }, nc, nb), h('td', { class: 'k c-site' }, r.site || '\u2013'), h('td', { class: 'k c-env' }, r.env || '\u2013'), h('td', { class: 'k c-ocp' }, r.version || '\u2013'), cols.map(t => cell(r, t)));
+  };
+  let hidden = 0;
+  keys.forEach(k => {
+    const rs = shown.filter(r => siteOf(r) === k), folded = !one && S.fold.has(k), cnt = {};
+    rs.forEach(r => ts.forEach(t => { const x = stat(r.cells[t]); cnt[x] = (cnt[x] || 0) + 1; }));
+    if (folded) hidden += rs.filter(r => visSet.has(r)).length;
+    const sb = !one && k !== HUB && h('button', { class: 'shs', type: 'button', 'data-site': k, 'aria-expanded': 'false', 'aria-haspopup': 'dialog', onclick: () => openSite(k, sb) }, 'Applied values');
+    tb.append(h('tr', { class: 'site' }, h('td', { colspan: ncol }, h('div', { class: 'sh' },
+      one ? h('span', { class: 'shl', role: 'heading', 'aria-level': 3 }, S.site === HUB ? 'Management hub' : k || 'No environment', h('span', { class: 'sc' }, plural(rs.length, 'cluster', 'clusters')))
+        : h('button', { class: 'shb', type: 'button', 'aria-expanded': !folded, 'data-fold': k, onclick: () => toggleFold(k) }, icon('chev'), k === HUB ? 'Management hub' : k, h('span', { class: 'sc' }, plural(rs.length, 'cluster', 'clusters'))),
+      h('span', { class: 'mini' }, ['onboarded', 'unverified', 'missing', 'stale', 'available'].filter(x => cnt[x]).map(x => pill(x, cnt[x]))), h('span', { class: 'grow' }), sb))));
+    if (folded) return;
+    const upi = rs.filter(r => r.kind === 'upi');
+    rs.filter(r => r.kind !== 'upi').forEach(r => tb.append(rowEl(r)));
+    if (upi.length) tb.append(h('tr', { class: 'sub' }, h('td', { colspan: ncol }, h('span', null, 'UPI clusters (' + upi.length + ')'))), ...upi.map(rowEl));
+  });
+  $('count').textContent = `Showing ${vis.length} of ${siteRows(S.site).length} clusters` + (hidden ? ` (${hidden} in collapsed sites)` : '');
+  $('foldall').textContent = SITES.every(k => S.fold.has(k)) ? 'Expand all' : 'Collapse all';
+  if (!shown.length) tb.append(h('tr', null, h('td', { colspan: ncol }, h('div', { class: 'empty' },
+    h('span', { class: 'cir s-none' }, icon('search')), h('b', null, 'No clusters match these filters.'),
+    h('span', { class: 'mut' }, S.tenant && S.status !== 'all' ? `Status filters look at ${S.tenant} only. Choose All tenants to check the whole fleet.` : 'Try a shorter name or clear the filters.'),
+    h('button', { class: 'btn', type: 'button', onclick: clearFilters }, 'Clear filters')))));
+  m.replaceChildren(h('caption', { class: 'sr' }, 'Clusters (rows) by tenant (columns). Select a status to open its details.'), thead, tb);
+  setCw(); markOpen();
+}
+function toggleFold(k) {
+  S.fold.has(k) ? S.fold.delete(k) : S.fold.add(k); writeHash(); renderMatrix();
+  document.querySelector(`[data-fold="${CSS.escape(k)}"]`)?.focus({ preventScroll: true });
+}
+function clearFilters() { Object.assign(S, { q: '', status: 'all', env: '' }); $('q').value = ''; $('fs').value = 'all'; $('fenv').value = ''; renderTiles(); renderMatrix(); }
+
+/* ---------- site navigation and site settings page ---------- */
+function renderNav() {
+  const t = S.tenant;
+  $('sitelist').replaceChildren(...['', ...SITES].map(k => {
+    const c = counts(t, k), bd = [['stale', c.stale], ['missing', D.expected_on && c.missing], ['conflict', c.col], ['version-skew', c.dup], ['nid', !t && c.nid]].filter(x => x[1]);
+    return h('li', null, h('button', { class: 'ni', type: 'button', 'data-site': k, 'aria-current': k === S.site ? 'page' : null, title: SLABEL(k), onclick: () => setSite(k) },
+      h('span', { class: 'nl' }, SLABEL(k)),
+      h('span', { class: 'nbs' }, bd.map(([s, n]) => h('span', { class: 'nbd s-' + s, title: n + ' ' + (s === 'nid' ? 'not in day2' : s) }, n, h('span', { class: 'sr' }, s === 'nid' ? ' not in day2' : ' ' + s))), h('span', { class: 'nc' }, siteRows(k).length, h('span', { class: 'sr' }, ' clusters')))));
+  }));
+
+  const ul = $('sitelist'), cur = ul.querySelector('[aria-current]');  /* chip row: keep the current chip in view */
+  if (cur && ul.scrollWidth > ul.clientWidth) ul.scrollLeft += cur.getBoundingClientRect().left - ul.getBoundingClientRect().left - (ul.clientWidth - cur.offsetWidth) / 2;
+}
+$('sitelist').onkeydown = e => {
+  const bs = [...document.querySelectorAll('#sitelist .ni')], i = bs.indexOf(document.activeElement), j = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: bs.length - 1 }[e.key];
+  if (i < 0 || j == null) return; e.preventDefault(); bs[Math.max(0, Math.min(bs.length - 1, j))].focus();
+};
+function renderSettings() {
+  if (!hasSettings()) return $('settings').replaceChildren();
+  const all = D.sites[S.site] || {}, ts = (S.tenant ? [S.tenant] : D.tenants).filter(x => all[x]);
+  if (!ts.length) return $('settings').replaceChildren(h('p', { class: 'mut' }, 'No site-level values at ' + S.site + '.'));
+  $('settings').replaceChildren(h('section', null,
+    h('div', { class: 'ghead' }, h('div', null, h('h2', null, 'Site settings'), h('p', null, 'Values files that apply to every cluster at ' + S.site + ', per tenant. Merged into every chart: above the team default and OCP pin, below fleet defaults and the cluster\u2019s own files.'))),
+    h('div', { class: 'cols' }, ts.map(x => h('div', { class: 'inset sp' }, siteSection(S.site, x))))));
+}
+
+/* ---------- side sheet (non-modal, no scrim) ---------- */
+const F = (t, p) => (D.files[t] || {})[p];
+/* layer ladder: only the files that exist, lowest -> highest, numbered by their real priority in the full stack */
+function ladder(t, L, E) {
+  const win = {}; Object.values(E).forEach(e => win[e[1]] = (win[e[1]] || 0) + 1);
+  const on = L.map(([label, p], i) => [label, p, i, F(t, p)]).filter(x => x[3]);
+  return on.length ? h('ol', { class: 'lad' }, on.map(([label, p, i, f]) => {
+    const st = f.e ? f.e + ', ignored' : f.n ? 'applied \u00b7 ' + plural(f.n, 'key', 'keys') + ((win[i] || 0) !== f.n ? ', ' + (win[i] || 0) + ' in effect' : '') : 'empty';
+    return h('li', { class: f.e ? 'err' : f.n ? '' : 'empty' }, h('div', { class: 'l1' }, h('span', { class: 'pn', title: 'Priority ' + (i + 1) + ' of ' + L.length }, i + 1), h('span', { class: 'll' }, label), h('span', { class: 'st' }, st)), pathEl(p));
+  })) : null;
+}
+function effective(E, L) {
+  const ks = Object.keys(E).sort();
+  if (!ks.length) return h('p', { class: 'hint' }, 'No keys set in any layer.');
+  const rows = ks.map(k => { const [v, s, o] = E[k];
+    return h('li', { 'data-s': (k + ' ' + (v ?? '') + ' ' + L[s][0]).toLowerCase() }, h('div', { class: 'kk' }, h('code', null, k), v == null ? h('span', { class: 'mut' }, 'value hidden') : h('code', null, v)),
+      h('div', { class: 'sb' }, 'set by ', h('b', null, L[s][0]), o.length ? ' · overrode ' + o.map(i => L[i][0]).join(', ') : '')); });
+  const ul = h('ul', { class: 'eff' }, rows);
+  return ks.length > 15 ? h('div', null, h('input', { class: 'flt', type: 'search', 'aria-label': 'Filter keys', placeholder: 'Filter ' + ks.length + ' keys',
+    oninput: e => { const q = e.target.value.trim().toLowerCase(); rows.forEach(li => li.hidden = !!q && !li.dataset.s.includes(q)); } }), ul) : ul;
+}
+function chartBody(t, pv) {
+  const s = pv.s, hv = D.hide_values, lad = (title, L, e, hint) => { const o = ladder(t, L, D.eff[e]); return o ? [h('h4', null, title), hint ? h('p', { class: 'hint' }, hint) : null, o].filter(Boolean) : []; };
+  const val = (v, none) => hv ? h('span', { class: 'mut' }, 'value hidden') : v ? h('code', null, v) : h('span', { class: 'mut' }, none || 'not set');
+  return [
+    ...pv.w.map(w => h('div', { class: 'callout warn', role: 'note' }, icon('stale'), h('span', null, w.t))),
+    h('h4', null, 'Summary'),
+    h('dl', { class: 'kv' }, h('dt', null, 'Repo'), h('dd', null, val(s.repo, 'not set, renders empty')), h('dt', null, 'Path'), h('dd', null, val(s.path)), h('dt', null, 'Namespace'), h('dd', null, val(s.ns)),
+      h('dt', null, 'Version'), h('dd', null, hv ? null : h('code', null, s.rev), h('span', { class: 'by' }, (hv ? '' : ' · ') + 'set by ' + s.by)),
+      h('dt', null, 'Sync'), h('dd', null, s.sync === 'auto' ? 'auto-sync, prune ' + (s.prune ? 'on' : 'off') : 'manual')),
+    ...lad('Deploy config', pv.d, pv.de, 'Numbered by priority: the highest number that sets a key wins.'),
+    h('h4', null, 'Effective deploy config'), effective(D.eff[pv.de], pv.d),
+    ...lad('Values', pv.v, pv.ve),
+    h('h4', null, 'Effective values'), effective(D.eff[pv.ve], pv.v)];
+}
+/* one chart on one cluster: closed row with origin, version and warning count; opens to the full provenance */
+function chartRow(r, x, ch, lead) {
+  const pv = (r.cells[x].pv || {})[ch.name], cfs = (confl[key(r.name, x)] || []).filter(q => q.entries.some(e => e.tenant === x && e.chart === ch.name));
+  const id = [r.name, x, ch.name].join('|'), nw = pv ? pv.w.length : 0;
+  const body = h('div', { class: 'chb', hidden: !S.exp.has(id) }), fill = () => { if (!body.firstChild && pv) body.append(...chartBody(x, pv)); };
+  const btn = h('button', { class: 'chh', type: 'button', 'aria-expanded': S.exp.has(id), onclick: () => {
+    const o = !S.exp.has(id); o ? S.exp.add(id) : S.exp.delete(id); btn.setAttribute('aria-expanded', o); body.hidden = !o; if (o) fill(); } },
+    h('span', { class: 'r1' }, icon('chev', 'chv'), lead === 'tenant' ? [avatar(x, true), h('span', { class: 'cn' }, x), btag(x)] : h('span', { class: 'cn' }, ch.name),
+      h('span', { class: 'tg ' + ch.origin }, ch.origin === 'own' ? 'own' : ch.scope === 'hub' ? 'hub' : 'default · ' + ch.scope)),
+    pv && h('span', { class: 'r2' }, h('span', { class: 'vchip', title: 'Version set by ' + pv.s.by }, D.hide_values ? null : h('code', null, pv.s.rev), h('span', { class: 'by' }, pv.s.by)),
+      nw > 0 && h('span', { class: 'tg warn', title: plural(nw, 'warning', 'warnings'), 'aria-label': plural(nw, 'warning', 'warnings') }, icon('stale'), nw)));
+  if (!body.hidden) fill();
+  return h('li', null, btn, cfs.map(q => h('div', { class: 'cfl ' + q.kind, style: 'padding:0 12px 8px 36px' }, icon(q.kind === 'conflict' ? 'conflict' : 'stale'),
+    'Also in ' + q.entries.filter(e => !(e.tenant === x && e.chart === ch.name)).map(e => (e.tenant === x ? e.chart + ' (same tenant)' : e.tenant + (e.chart !== ch.name ? ' / ' + e.chart : '') + ' (' + e.origin + ')' + (q.kind === 'version-skew' && e.rev ? ' at ' + revLabel(e.rev) : ''))).join(', ') + ' \u00b7 ' + KL[q.kind].toLowerCase())), body);
+}
+function sheetSection(r, x) {
+  const c = r.cells[x], k = stat(c), add = c.status === 'available' || c.status === 'missing', cfx = confl[key(r.name, x)] || [], av = c.avail || [];
+  return h('section', { class: 'tsec' }, h('h3', null, avatar(x, true), h('span', { class: 'tn' }, x), btag(x), pill(k, c.charts.length || null)),
+    c.reason && h('p', { class: 'why' }, c.reason),
+    D.expected_on && c.reg === 'day1' && h('p', { class: 'hint' }, 'Registered by day1 (copy_to_sigs).'),
+    D.expected_on && c.reg === 'manual' && h('p', { class: 'hint' }, 'Not in copy_to_sigs: this folder was added by hand, day1 did not register it.'),
+    c.path && !c.reason.startsWith('folder exists twice') && h('div', { class: 'path' }, h('span', { class: 'l' }, add ? 'Create' : 'Folder'), pathEl(c.path)),
+    cfx.length > 0 && h('div', { class: 'callout' + (cfx.some(q => q.kind === 'conflict') ? '' : ' warn') }, icon(cfx.some(q => q.kind === 'conflict') ? 'conflict' : 'stale'),
+      h('span', null, 'On this cluster: ' + [['conflict', 'conflict', 'conflicts'], ['version-skew', 'version warning', 'version warnings']].map(([k, a, b]) => [cfx.filter(q => q.kind === k).length, a, b]).filter(z => z[0]).map(z => plural(z[0], z[1], z[2])).join(', ') + '. See the Conflicts tab.')),
+    c.charts.length ? h('ul', { class: 'charts', 'aria-label': 'Charts for ' + x }, c.charts.map(ch => chartRow(r, x, ch, 'chart'))) : h('p', { class: 'why' }, 'No charts.'),
+    av.length > 0 && [h('p', { class: 'hint', style: 'margin-top:12px' }, `Available charts (${av.length})`),
+      h('ul', { class: 'charts', 'aria-label': 'Available charts for ' + x }, av.map(a => h('li', { style: 'padding:8px 12px' },
+        h('div', { class: 'r1' }, h('span', { class: 'cn' }, a.chart), a.rev && h('span', { class: 'vchip', title: 'Team default version' }, h('code', null, a.rev)),
+          a.pinned && h('span', { class: 'tg own' }, 'OCP ' + r.version + ' pin' + (a.pin ? ' \u00b7 ' + a.pin : ''))),
+        h('div', { class: 'path', style: 'margin-top:4px' }, pathEl(a.folder)))))],
+    (c.excluded || []).length > 0 && [h('p', { class: 'hint', style: 'margin-top:12px' }, 'Fleet defaults not applied here'),
+      h('ul', { class: 'charts', 'aria-label': 'Excluded fleet defaults for ' + x }, c.excluded.map(e => h('li', { style: 'padding:8px 12px' },
+        h('div', { class: 'r1' }, h('span', { class: 'cn mut' }, e.chart), h('span', { class: 'tg' }, 'excluded here')), h('div', { class: 'why' }, 'Listed for this cluster in ' + e.via))))]);
+}
+function chartView(r, ts) {
+  const by = {}; ts.forEach(x => r.cells[x].charts.forEach(ch => (by[ch.name] ||= []).push([x, ch])));
+  return Object.keys(by).sort().map(n => h('section', { class: 'tsec' }, h('h3', null, h('span', { class: 'tn' }, n), h('span', { class: 'tg' }, plural(by[n].length, 'tenant', 'tenants'))),
+    h('ul', { class: 'charts', 'aria-label': 'Tenants with ' + n }, by[n].map(([x, ch]) => chartRow(r, x, ch, 'tenant')))));
+}
+/* cluster-level facts from day1: file warnings, upgrade in progress, which tenants day1 registers it with */
+const rowInfo = r => [
+  ...(r.warns || []).map(w => h('div', { class: 'callout warn', role: 'note' }, icon('stale'), h('span', null, w))),
+  (r.workers || []).length > 0 && h('div', { class: 'callout warn', role: 'note' }, icon('stale'), h('span', null, `Control plane on ${r.version || '?'}, workers on ${r.workers.join(', ')}: upgrade in progress.`)),
+  D.expected_on && r.kind === 'hosted' && h('p', { class: 'hint', style: 'margin:10px 0 0' }, 'Day1 registers this cluster with: ' + ((r.expected || []).join(', ') || 'no tenant') + '.')];
+function renderSheet() {
+  const { r, ts } = S.cur, sv = $('sview');
+  sv.hidden = ts.length < 2;
+  sv.replaceChildren(...[['tenant', 'By tenant'], ['chart', 'By chart']].map(([v, l]) => h('button', { type: 'button', 'aria-pressed': S.view === v, onclick: () => { S.view = v; renderSheet(); sv.querySelector('[aria-pressed=true]').focus(); } }, l)));
+  $('sbody').replaceChildren(...rowInfo(r).filter(Boolean), ...(!ts.length ? [] : S.view === 'chart' && ts.length > 1 ? chartView(r, ts) : ts.map(x => sheetSection(r, x))));
+}
+function present(trig) {
+  S.trig = trig; $('sbody').scrollTop = 0;
+  const s = $('sheet'); s.inert = false; s.classList.add('open'); markOpen();
+  $('sclose').focus({ preventScroll: true });
+}
+function openSheet(r, t, trig) {
+  if (S.open && S.open.n === r.name && S.open.t === t) return closeSheet(true);
+  S.open = { n: r.name, t };
+  S.cur = { r, ts: t ? [t] : D.tenants.filter(x => r.cells[x].charts.length || r.cells[x].reason) };
+  $('sheet-t').textContent = r.name;
+  $('sheet-s').textContent = [KIND[r.kind], r.site, r.env, r.version].filter(Boolean).join(' · ');
+  renderSheet(); present(trig);
+}
+/* what sites/<site>/values.yaml and sites/<site>/<env>/values.yaml apply, per tenant */
+function siteSection(site, x) {
+  return h('section', { class: 'tsec' }, h('h3', null, avatar(x, true), h('span', { class: 'tn' }, x), btag(x), h('span', { class: 'catn' }, plural(D.catalog[x] || 0, 'chart', 'charts') + ' in catalog')),
+    h('ul', { class: 'files', 'aria-label': 'Site values files for ' + x }, D.sites[site][x].map(f => h('li', null, pathEl(f.p),
+      h('div', { class: 'st' }, f.e ? f.e + ', ignored' : !f.n ? 'empty' : plural(f.n, 'key', 'keys') + ' set · feeds ' + plural(f.ch, 'chart', 'charts') + ' on ' + plural(f.cl, 'cluster', 'clusters')),
+      f.k.length > 0 && h('details', null, h('summary', null, 'Keys'), h('div', { class: 'keys' }, f.k.map(k => h('code', null, k))))))));
+}
+function openSite(site, trig) {
+  if (S.open && S.open.site === site) return closeSheet(true);
+  S.open = { site }; S.cur = null;
+  const all = D.sites[site] || {}, ts = (S.tenant ? [S.tenant] : D.tenants).filter(x => all[x]);
+  $('sheet-t').textContent = 'Site ' + site; $('sheet-s').textContent = 'Applied to every cluster at this site'; $('sview').hidden = true;
+  $('sbody').replaceChildren(...(ts.length ? [h('p', { class: 'hint', style: 'padding-top:14px' }, 'Merged into every chart on every cluster here: above the team default and OCP pin, below fleet defaults and the cluster’s own files.'), ...ts.map(x => siteSection(site, x))]
+    : [h('p', { class: 'mut', style: 'padding-top:16px' }, 'No site-level values at ' + site + '.')]));
+  present(trig);
+}
+function closeSheet(refocus) {
+  if (!S.open) return;
+  const trig = S.trig; S.open = null; S.trig = null;
+  const s = $('sheet'); s.classList.remove('open'); s.inert = true; markOpen();
+  if (refocus && trig && trig.isConnected) trig.focus({ preventScroll: true });
+}
+function markOpen() {
+  document.querySelectorAll('[aria-expanded=true][data-k],#m td.nm [aria-expanded=true],.shs[aria-expanded=true]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+  if (!S.open) return;
+  if (S.open.site != null) { const b = document.querySelector(`.shs[data-site="${CSS.escape(S.open.site)}"]`); if (b) { b.setAttribute('aria-expanded', 'true'); if (!S.trig || !S.trig.isConnected) S.trig = b; } return; }
+  const tr = [...document.querySelectorAll('#m tr.r')].find(x => x.querySelector('.name')?.textContent === S.open.n);
+  const b = tr && (S.open.t ? tr.querySelector(`[data-k="${CSS.escape(key(S.open.n, S.open.t))}"]`) : tr.querySelector('td.nm .cb'));
+  if (b) { b.setAttribute('aria-expanded', 'true'); if (!S.trig || !S.trig.isConnected) S.trig = b; }
+}
+$('sclose').onclick = () => closeSheet(true);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.open && $('brpop').hidden) { e.preventDefault(); closeSheet(true); } });
+
+/* ---------- state, hash, wiring ---------- */
+function parseHash() {
+  const p = new URLSearchParams(location.hash.slice(1)), t = p.get('tenant'), tab = p.get('tab'), site = p.get('site');
+  return { site: SITES.includes(site) ? site : '', tenant: D.tenants.includes(t) ? t : null, tab: TABS.includes(tab) ? tab : null, fold: new Set((p.get('fold') || '').split(',').filter(x => SITES.includes(x))) };
+}
+/* refs=a:dev,b:release is read from the raw hash: a branch name may hold %2C (comma) or %2F (slash) */
+function hashRefs() {
+  const raw = location.hash.slice(1).split('&').find(x => x.startsWith('refs=')), out = {};
+  if (raw) raw.slice(5).split(',').forEach(x => { const i = x.indexOf(':'); try { if (i > 0) out[decodeURIComponent(x.slice(0, i))] = decodeURIComponent(x.slice(i + 1)); } catch (e) {} });
+  return out;
+}
+function writeHash() {
+  const p = new URLSearchParams(); if (S.site) p.set('site', S.site); if (S.tenant) p.set('tenant', S.tenant); if (S.tab) p.set('tab', S.tab);
+  let q = p.toString(); if (S.fold.size && !S.site) q += (q ? '&' : '') + 'fold=' + [...S.fold].sort().map(encodeURIComponent).join(',');
+  const e = Object.entries(S.refs).sort(), r = e.length ? 'refs=' + e.map(([t, b]) => encodeURIComponent(t) + ':' + encodeURIComponent(b)).join(',') : '';
+  q = [r, q].filter(Boolean).join('&');
+  history.replaceState(null, '', q ? '#' + q : location.pathname + location.search);
+}
+function applyHash() { const p = parseHash(); S.site = p.site; S.tenant = p.tenant; S.tab = p.tab; S.fold = p.fold; }
+function renderAll() { fillEnv(); renderNav(); renderCtx(); renderTiles(); renderActions(); renderConflicts(); renderSettings(); renderMatrix(); renderTabs(); $('tenant').value = S.tenant || ''; }
+function setSite(k) {
+  if (k === S.site) return;
+  closeSheet(false); S.site = k; writeHash(); renderAll(); flash($('area')); flash($('wrap'));
+  document.querySelector(`#sitelist .ni[data-site="${CSS.escape(k)}"]`)?.focus({ preventScroll: true });
+}
+function setTenant(t, fromHash) {
+  closeSheet(false); S.tenant = t; if (!fromHash) { S.tab = null; writeHash(); }
+  renderAll(); flash($('area')); flash($('wrap'));
+}
+const fillTenants = () => $('tenant').replaceChildren(new Option('All tenants', ''), ...D.tenants.map(t => new Option(S.refs[t] ? t + ' @ ' + S.refs[t] : t, t)));
+$('tenant').onchange = e => setTenant(e.target.value || null);
+$('q').oninput = e => { S.q = e.target.value; renderMatrix(); };
+$('qx').onclick = () => { $('q').value = ''; S.q = ''; renderMatrix(); $('q').focus(); };
+[['fs', 'status'], ['fenv', 'env']].forEach(([id, k]) => $(id).onchange = e => { S[k] = e.target.value; if (k === 'status') renderTiles(); renderMatrix(); flash($('wrap')); });
+$('foldall').onclick = () => { S.fold = SITES.every(k => S.fold.has(k)) ? new Set() : new Set(SITES); writeHash(); renderMatrix(); };
+$('clr').onclick = () => { clearFilters(); flash($('wrap')); };
+addEventListener('resize', setCw);
+
+/* ---------- branch views: pick a branch per tenant, fetch api/view ---------- */
+const dflt = t => BASE.refs[t].branch;
+const sameRefs = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+const multi = () => !!BASE.live && Object.values(BASE.branches || {}).some(l => l.length > 1);
+let seq = 0;
+function setBusy(on) {
+  $('brbtn').classList.toggle('busy', on); $('brbtn').setAttribute('aria-busy', on); $('main').setAttribute('aria-busy', on);
+  $('brapply').disabled = on; $('brreset').disabled = on; $('brapply').textContent = on ? 'Applying\u2026' : 'Apply';
+}
+function renderBar() {
+  const off = Object.entries(S.refs), bar = $('viewbar');
+  bar.replaceChildren(...[
+    off.length && h('div', { class: 'vb', role: 'status' }, icon('branch'), h('span', null, 'Viewing ', off.flatMap(([t, b], i) => [i ? ', ' : '', h('b', null, t), ' @ ', h('code', null, b), ' (', h('code', null, D.refs[t].sha.slice(0, 7)), ')']),
+      off.length < D.tenants.length ? ' \u00b7 others on default branches' : '', ' \u00b7 ', h('button', { class: 'link', type: 'button', id: 'vbreset', onclick: resetAll }, 'Reset'))),
+    S.note && h('div', { class: 'vb note', role: 'status' }, icon('info'), h('span', null, S.note))].filter(Boolean));
+  bar.hidden = !bar.firstChild;
+}
+function renderBranches() {
+  const n = Object.keys(S.refs).length, b = $('brbtn');
+  b.hidden = !multi();
+  b.replaceChildren(icon('branch'), 'Branches', ...(n ? [h('span', { class: 'bn' }, n, h('span', { class: 'sr' }, ' not on the default branch'))] : []));
+  renderBar();
+}
+/* swap in a new D (default view or branch view) and redraw; the user's tenant, site and tab stay when they still exist */
+function setData(d, refs) {
+  closeSheet(false); D = d; S.refs = refs; derive();
+  if (!D.tenants.includes(S.tenant)) S.tenant = null;
+  if (!SITES.includes(S.site)) S.site = '';
+  S.fold = new Set([...S.fold].filter(x => SITES.includes(x)));
+  if ((S.status === 'nid' && !nidSet.size) || (S.status === 'missing' && !D.expected_on)) S.status = 'all';
+  for (const k in more) delete more[k];
+  renderChrome(); fillStatus(); fillTenants(); renderBranches(); renderAll();
+}
+function showErr(msg) {
+  if ($('brpop').hidden) { S.note = msg; renderBar(); } else { $('brerr').textContent = msg; $('brerr').hidden = false; }
+}
+async function loadRefs(refs) {  // refs: only tenants off their default branch. -> true when D now matches
+  const my = ++seq;
+  if (!Object.keys(refs).length) { setBusy(false); setData(BASE, {}); return true; }
+  setBusy(true);
+  try {
+    const r = await fetch('api/view?' + Object.entries(refs).map(([t, b]) => 'ref=' + encodeURIComponent(t + ':' + b)).join('&'), { headers: { accept: 'application/json' } });
+    const j = await r.json().catch(() => ({}));
+    if (my !== seq) return false;
+    if (!r.ok) throw new Error(j.error || 'The server answered ' + r.status + '.');
+    j.generated = BASE.generated; setData(j, refs); return true;
+  } catch (e) {
+    if (my === seq) showErr(e instanceof TypeError ? 'Could not reach the server.' : e.message);
+    return false;
+  } finally { if (my === seq) setBusy(false); }
+}
+/* the hash is the source of truth on load and on hashchange: unknown tenants/branches fall back to the default with a one-line notice */
+async function fromHash() {
+  const want = hashRefs(), have = Object.keys(want).length;
+  if (!BASE.live) { S.note = have ? 'Branch views need the running server; showing the default branches.' : ''; return renderBar(); }
+  const ok = {}, notes = [];
+  for (const [t, b] of Object.entries(want)) {
+    if (!(t in BASE.branches)) notes.push(`Tenant ${t} was not found.`);
+    else if (!BASE.branches[t].includes(b)) notes.push(`Branch ${b} of ${t} no longer exists; showing ${dflt(t)}.`);
+    else if (b !== dflt(t)) ok[t] = b;
+  }
+  S.note = notes.join(' ');
+  if (sameRefs(ok, S.refs)) return renderBar();
+  await loadRefs(ok);
+}
+async function resetAll() {
+  S.note = ''; $('brerr').hidden = true;
+  if (await loadRefs({})) { writeHash(); setPop(false); $('brbtn').focus(); }
+}
+let draft = {};
+function brRow(t, i) {
+  const def = dflt(t), names = [def, ...D.branches[t].filter(n => n !== def)], sel = h('select', { id: 'brs' + i }), many = names.length > 15;
+  const fill = q => {
+    const cur = draft[t] || def, shown = names.filter(n => n === cur || !q || n.toLowerCase().includes(q));
+    sel.replaceChildren(...shown.map(n => new Option(n === def ? n + ' (default)' : n, n))); sel.value = cur;
+  };
+  sel.onchange = () => { sel.value === def ? delete draft[t] : draft[t] = sel.value; };
+  fill('');
+  return h('div', { class: 'brrow' }, h('span', { class: 'tn' }, avatar(t, true), t),
+    h('div', null, many && h('input', { class: 'flt', type: 'search', 'aria-label': 'Filter the ' + names.length + ' branches of ' + t, placeholder: 'Filter ' + names.length + ' branches', oninput: e => fill(e.target.value.trim().toLowerCase()) }),
+      h('div', { class: 'dd' }, h('label', { class: 'sr', for: 'brs' + i }, 'Branch of ' + t), sel, icon('down'))));
+}
+function setPop(open) {
+  const p = $('brpop');
+  if (open) { draft = { ...S.refs }; $('brerr').hidden = true; $('brlist').replaceChildren(...BASE.tenants.filter(t => (D.branches[t] || []).length > 1).map(brRow)); }
+  p.hidden = !open; $('brbtn').setAttribute('aria-expanded', open);
+  if (open) p.querySelector('select, input').focus();
+}
+$('brbtn').onclick = () => setPop($('brpop').hidden);
+$('brreset').onclick = resetAll;
+$('brapply').onclick = async () => {
+  S.note = ''; $('brerr').hidden = true;
+  if (await loadRefs({ ...draft })) { renderBar(); writeHash(); setPop(false); $('brbtn').focus(); }
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('brpop').hidden) { e.preventDefault(); setPop(false); $('brbtn').focus(); } });
+document.addEventListener('pointerdown', e => { if (!$('brpop').hidden && !e.target.closest('#brpop, #brbtn')) setPop(false); });
+addEventListener('hashchange', async () => { await fromHash(); applyHash(); renderAll(); closeSheet(false); });
+
+derive(); renderChrome(); fillStatus(); fillTenants(); applyHash(); renderBranches(); renderAll();
+if (BASE.live && Object.keys(hashRefs()).length) setBusy(true);  // do not show the default data as if it were the requested view
+fromHash().then(() => { applyHash(); renderAll(); if (S.note || Object.keys(S.refs).length) writeHash(); }).finally(() => setBusy(false));
+</script>
+</body>
+</html>
